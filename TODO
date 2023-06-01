@@ -1,6 +1,0 @@
-1. Download raw data to ./data/raw/ (complete)
-   - Raw data was saved to /home/quandou/Projects/CMRxRecon/data/raw/ (on the deep server deep.bme.virginia.edu)
-2. Check the data format, and run the standard code to check the workflow
-3. Preprocess the data, e.g., format conversion
-4. Find the current state-of-the-art CINE reconstruction technique and try it on the dataset
-5. ...
