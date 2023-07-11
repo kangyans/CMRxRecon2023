@@ -233,6 +233,15 @@ class CReLU(nn.Module):
         return self.relu(input.real) + 1j * self.relu(input.imag)
 
 
+class CLeakyReLU(nn.Module):
+    def __init__(self, negative_slope=0.01):
+        super().__init__()
+        self.leaky_relu = nn.LeakyReLU(negative_slope)
+
+    def forward(self, input):
+        return self.leaky_relu(input.real) + 1j * self.leaky_relu(input.imag)
+
+
 class CUpSample(nn.Module):
     def __init__(self, size=None, scale_factor=None, mode='nearest',
                  align_corners=None):

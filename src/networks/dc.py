@@ -2,7 +2,7 @@ import torch
 from torch import fft, nn
 
 
-class Real2Complex(nn.Module):
+class R2C(nn.Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -11,7 +11,7 @@ class Real2Complex(nn.Module):
         return torch.complex(x.select(self.dim, 0), x.select(self.dim, 1))
 
 
-class Complex2Real(nn.Module):
+class C2R(nn.Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -68,49 +68,77 @@ class CoilCombine(nn.Module):
         return torch.sum(torch.conj_physical(sens) * x, dim=self.dim)
 
 
-class SingleCoilDataConsistency(nn.Module):
+class SingleCoilDC(nn.Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
-        self.real2complex = Real2Complex()
+        self.r2c = R2C()
         self.fft = FFT()
         self.ifft = IFFT()
-        self.complex2real = Complex2Real()
+        self.c2r = C2R()
 
     def forward(self, x, mask, k0):
-        is_complex = torch.is_complex(x)
-        if not is_complex:
-            x = self.real2complex(x)
+        x = self.r2c(x)
         kcnn = self.fft(x)
         k = mask * (kcnn + self.lamda * k0) / (1 + self.lamda) + \
             (1 - mask) * kcnn
         x = self.ifft(k)
-        if not is_complex:
-            x = self.complex2real(x)
+        x = self.c2r(x)
         return x
 
 
-class MultiCoilDataConsistency(nn.Module):
+class MultiCoilDC(nn.Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
-        self.real2complex = Real2Complex()
+        self.r2c = R2C()
         self.coil_split = CoilSplit()
         self.fft = FFT()
         self.ifft = IFFT()
         self.coil_combine = CoilCombine()
-        self.complex2rea = Complex2Real()
+        self.c2r = C2R()
 
     def forward(self, x, mask, k0, sens):
-        is_complex = torch.is_complex(x)
-        if not is_complex:
-            x = self.real2complex(x)
-        x = self.coil_split(x)
-        kcnn = self.fft()
+        x = self.r2c(x)
+        x = self.coil_split(x, sens)
+        kcnn = self.fft(x)
         k = mask * (kcnn + self.lamda * k0) / (1 + self.lamda) + \
             (1 - mask) * kcnn
         x = self.ifft(k)
-        x = self.coil_combine(x)
-        if not is_complex:
-            x = self.complex2real(x)
+        x = self.coil_combine(x, sens)
+        x = self.c2r(x)
+        return x
+
+
+class CSingleCoilDC(nn.Module):
+    def __init__(self, lamda):
+        super().__init__()
+        self.lamda = lamda
+        self.fft = FFT()
+        self.ifft = IFFT()
+
+    def forward(self, x, mask, k0):
+        kcnn = self.fft(x)
+        k = mask * (kcnn + self.lamda * k0) / (1 + self.lamda) + \
+            (1 - mask) * kcnn
+        x = self.ifft(k)
+        return x
+
+
+class CMultiCoilDC(nn.Module):
+    def __init__(self, lamda):
+        super().__init__()
+        self.lamda = lamda
+        self.coil_split = CoilSplit()
+        self.fft = FFT()
+        self.ifft = IFFT()
+        self.coil_combine = CoilCombine()
+
+    def forward(self, x, mask, k0, sens):
+        x = self.coil_split(x, sens)
+        kcnn = self.fft(x)
+        k = mask * (kcnn + self.lamda * k0) / (1 + self.lamda) + \
+            (1 - mask) * kcnn
+        x = self.ifft(k)
+        x = self.coil_combine(x, sens)
         return x
