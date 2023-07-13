@@ -67,7 +67,7 @@ class CResNet2d(ResNet):
 
 class CResNet3d(ResNet):
     def __init__(self, in_channels, out_channels, depth,
-                 num_filters=64, kernel_size=3, bias=True,
+                 num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
         super().__init__('3', False, in_channels, out_channels,
                          depth, num_filters, kernel_size, bias,
@@ -76,7 +76,7 @@ class CResNet3d(ResNet):
 
 class CResNet2plus1d(ResNet):
     def __init__(self, in_channels, out_channels, depth,
-                 num_filters=64, kernel_size=3, bias=True,
+                 num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
         super().__init__('2+1', False, in_channels, out_channels,
                          depth, num_filters, kernel_size, bias,

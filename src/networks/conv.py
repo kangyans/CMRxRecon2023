@@ -53,22 +53,22 @@ class ConvBlock(nn.Module):
 class ConvBlock1d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(1, True, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(1, True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class ConvBlock2d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(2, True, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(2, True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class ConvBlock3d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(3, True, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(3, True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class ConvBlock2plus1d(nn.Module):
@@ -125,22 +125,22 @@ class ConvBlock2plus1d(nn.Module):
 class CConvBlock1d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(1, False, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(1, False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class CConvBlock2d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(2, False, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(2, False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class CConvBlock3d(ConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
-        super().__init__(3, False, in_channels, out_channels, kernel_size,
-                         bias, normalization, activation)
+        super().__init__(3, False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
 
 
 class CConvBlock2plus1d(nn.Module):
