@@ -13,7 +13,7 @@
    3. [CINENet: deep learning-based 3D cardiac CINE MRI reconstruction with multi-coil complex-valued 4D spatio-temporal convolutions](https://www.nature.com/articles/s41598-020-70551-8). Thomas Küstner, Niccolo Fuin, Kerstin Hammernik, Aurelien Bustin, Haikun Qi, Reza Hajhosseiny, Pier Giorgio Masci, Radhouene Neji, Daniel Rueckert, René M. Botnar, Claudia Prieto. 2020.
    4. [Accelerating cardiac cine MRI using a deep learning-based ESPIRiT reconstruction](https://onlinelibrary.wiley.com/doi/10.1002/mrm.28420). Christopher M. Sandino, Peng Lai, Shreyas S. Vasanawala, Joseph Y. Cheng. 2020.
    5. ... 
-- [ ] Write code for building the network
+- [x] Write code for building the network
    - It seems that all of the models have the following the structure:
    ```
    input -> CNN -> Data Consistency -> CNN -> Data Consistency -> ... -> output
