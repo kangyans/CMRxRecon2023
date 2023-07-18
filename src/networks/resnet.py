@@ -1,7 +1,7 @@
 from conv import *
 
 
-class ResNet(nn.Module):
+class _ResNet(Module):
     def __init__(self, dimensions, real, in_channels, out_channels,
                  depth, num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -23,13 +23,13 @@ class ResNet(nn.Module):
                                      bias, normalization, activation))
         blocks.append(conv_block(num_filters, out_channels, kernel_size,
                                  bias, normalization, activation))
-        self.net = nn.Sequential(*blocks)
+        self.net = Sequential(*blocks)
 
     def forward(self, input):
         return self.net(input) + input
 
 
-class ResNet2d(ResNet):
+class ResNet2d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -38,7 +38,7 @@ class ResNet2d(ResNet):
                          normalization, activation)
 
 
-class ResNet3d(ResNet):
+class ResNet3d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -47,7 +47,7 @@ class ResNet3d(ResNet):
                          normalization, activation)
 
 
-class ResNet2plus1d(ResNet):
+class ResNet2plus1d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -56,7 +56,7 @@ class ResNet2plus1d(ResNet):
                          normalization, activation)
 
 
-class CResNet2d(ResNet):
+class CResNet2d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -65,7 +65,7 @@ class CResNet2d(ResNet):
                          normalization, activation)
 
 
-class CResNet3d(ResNet):
+class CResNet3d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -74,7 +74,7 @@ class CResNet3d(ResNet):
                          normalization, activation)
 
 
-class CResNet2plus1d(ResNet):
+class CResNet2plus1d(_ResNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):

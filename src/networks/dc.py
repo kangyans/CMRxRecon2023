@@ -1,8 +1,9 @@
 import torch
-from torch import fft, nn
+from torch.nn import *
+from torch.fft import *
 
 
-class R2C(nn.Module):
+class R2C(Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -11,7 +12,7 @@ class R2C(nn.Module):
         return torch.complex(x.select(self.dim, 0), x.select(self.dim, 1))
 
 
-class C2R(nn.Module):
+class C2R(Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -20,7 +21,7 @@ class C2R(nn.Module):
         return torch.stack([x.real, x.imag], self.dim)
 
 
-class FFT(nn.Module):
+class FFT(Module):
     def __init__(self, dim=(-2, -1), norm='ortho', centered=True):
         super().__init__()
         self.dim = dim
@@ -29,13 +30,13 @@ class FFT(nn.Module):
 
     def forward(self, x):
         if self.centered:
-            return fft.fftshift(fft.fft2(fft.ifftshift(
-                x, dim=self.dim), dim=self.dim, norm=self.norm), dim=self.dim)
+            return fftshift(fft2(ifftshift(x, dim=self.dim), dim=self.dim,
+                                 norm=self.norm), dim=self.dim)
         else:
-            return fft.fft2(x, dim=self.dim, norm=self.norm)
+            return fft2(x, dim=self.dim, norm=self.norm)
 
 
-class IFFT(nn.Module):
+class IFFT(Module):
     def __init__(self, dim=(-2, -1), norm='ortho', centered=True):
         super().__init__()
         self.dim = dim
@@ -44,13 +45,13 @@ class IFFT(nn.Module):
 
     def forward(self, x):
         if self.centered:
-            return fft.fftshift(fft.ifft2(fft.ifftshift(
-                x, dim=self.dim), dim=self.dim, norm=self.norm), dim=self.dim)
+            return fftshift(ifft2(ifftshift(x, dim=self.dim), dim=self.dim,
+                                  norm=self.norm), dim=self.dim)
         else:
-            return fft.ifft2(x, dim=self.dim, norm=self.norm)
+            return ifft2(x, dim=self.dim, norm=self.norm)
 
 
-class CoilSplit(nn.Module):
+class CoilSplit(Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -59,7 +60,7 @@ class CoilSplit(nn.Module):
         return sens * torch.unsqueeze(x, dim=self.dim)
 
 
-class CoilCombine(nn.Module):
+class CoilCombine(Module):
     def __init__(self, dim=1):
         super().__init__()
         self.dim = dim
@@ -68,7 +69,7 @@ class CoilCombine(nn.Module):
         return torch.sum(torch.conj_physical(sens) * x, dim=self.dim)
 
 
-class SingleCoilDC(nn.Module):
+class SingleCoilDC(Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
@@ -87,7 +88,7 @@ class SingleCoilDC(nn.Module):
         return x
 
 
-class MultiCoilDC(nn.Module):
+class MultiCoilDC(Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
@@ -110,7 +111,7 @@ class MultiCoilDC(nn.Module):
         return x
 
 
-class CSingleCoilDC(nn.Module):
+class CSingleCoilDC(Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
@@ -125,7 +126,7 @@ class CSingleCoilDC(nn.Module):
         return x
 
 
-class CMultiCoilDC(nn.Module):
+class CMultiCoilDC(Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda

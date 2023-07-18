@@ -1,9 +1,8 @@
-import torch
 import torch.nn.functional as F
 from conv import *
 
 
-class DoubleConvBlock(nn.Module):
+class _DoubleConvBlock(Module):
     def __init__(self, dimensions, real, in_channels,
                  out_channels, kernel_size=3, bias=True,
                  normalization=None, activation=None):
@@ -16,7 +15,7 @@ class DoubleConvBlock(nn.Module):
             conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
         else:
             raise ValueError('dimensions should be 2 or 3 or 2+1.')
-        self.block = nn.Sequential(
+        self.block = Sequential(
             conv_block(in_channels, out_channels, kernel_size,
                        bias, normalization, activation),
             conv_block(out_channels, out_channels, kernel_size,
@@ -26,64 +25,64 @@ class DoubleConvBlock(nn.Module):
         return self.block(input)
 
 
-class DoubleConvBlock2d(DoubleConvBlock):
+class _DoubleConvBlock2d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
         super().__init__('2', True, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class DoubleConvBlock3d(DoubleConvBlock):
+class _DoubleConvBlock3d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
         super().__init__('3', True, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class DoubleConvBlock2plus1d(DoubleConvBlock):
+class _DoubleConvBlock2plus1d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
         super().__init__('2+1', True, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class CDoubleConvBlock2d(DoubleConvBlock):
+class _CDoubleConvBlock2d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
         super().__init__('2', False, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class CDoubleConvBlock3d(DoubleConvBlock):
+class _CDoubleConvBlock3d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
                  normalization=None, activation=None):
         super().__init__('3', False, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class CDoubleConvBlock2plus1d(DoubleConvBlock):
+class _CDoubleConvBlock2plus1d(_DoubleConvBlock):
     def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
                  normalization=None, activation=None):
         super().__init__('2+1', False, in_channels, out_channels,
                          kernel_size, bias, normalization, activation)
 
 
-class UpsampleBlock(nn.Module):
+class _UpsampleBlock(Module):
     def __init__(self, dimensions, real, in_channels,
                  out_channels, bias=True):
         super().__init__()
         if dimensions == '2':
-            upsample = nn.Upsample if real else cnn.CUpsample
+            upsample = Upsample if real else CUpsample
             conv_block = ConvBlock2d if real else CConvBlock2d
         elif dimensions == '3':
-            upsample = nn.Upsample if real else cnn.CUpsample
+            upsample = Upsample if real else CUpsample
             conv_block = ConvBlock3d if real else CConvBlock3d
         elif dimensions == '2+1':
-            upsample = nn.Upsample if real else cnn.CUpsample
+            upsample = Upsample if real else CUpsample
             conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
         else:
             raise ValueError('dimensions should be 2 or 3 or 2+1.')
-        self.block = nn.Sequential(
+        self.block = Sequential(
             upsample(scale_factor=2, mode='bilinear'),
             conv_block(in_channels, out_channels, kernel_size=1, bias=bias))
 
@@ -91,37 +90,37 @@ class UpsampleBlock(nn.Module):
         return self.block(input)
 
 
-class UpsampleBlock2d(UpsampleBlock):
+class _UpsampleBlock2d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('2', True, in_channels, out_channels, bias)
 
 
-class UpsampleBlock3d(UpsampleBlock):
+class _UpsampleBlock3d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('3', True, in_channels, out_channels, bias)
 
 
-class UpsampleBlock2plus1d(UpsampleBlock):
+class _UpsampleBlock2plus1d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('2+1', True, in_channels, out_channels, bias)
 
 
-class CUpsampleBlock2d(UpsampleBlock):
+class _CUpsampleBlock2d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('2', False, in_channels, out_channels, bias)
 
 
-class CUpsampleBlock3d(UpsampleBlock):
+class _CUpsampleBlock3d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('3', False, in_channels, out_channels, bias)
 
 
-class CUpsampleBlock2plus1d(UpsampleBlock):
+class _CUpsampleBlock2plus1d(_UpsampleBlock):
     def __init__(self, in_channels, out_channels, bias=True):
         super().__init__('2+1', False, in_channels, out_channels, bias)
 
 
-class UNet(nn.Module):
+class _UNet(Module):
     def __init__(self, dimensions, real, in_channels, out_channels,
                  depth, num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -129,23 +128,23 @@ class UNet(nn.Module):
         if depth < 2:
             raise ValueError('depth should be greater than 2.')
         if dimensions == '2':
-            double_conv_block = DoubleConvBlock2d if real \
-                else CDoubleConvBlock2d
-            downsample_block = nn.MaxPool2d if real else cnn.CMaxPool2d
-            upsample_block = UpsampleBlock2d if real else CUpsampleBlock2d
+            double_conv_block = _DoubleConvBlock2d if real \
+                else _CDoubleConvBlock2d
+            downsample_block = MaxPool2d if real else CMaxPool2d
+            upsample_block = _UpsampleBlock2d if real else _CUpsampleBlock2d
             conv_block = ConvBlock2d if real else CConvBlock2d
         elif dimensions == '3':
-            double_conv_block = DoubleConvBlock3d if real \
-                else CDoubleConvBlock3d
-            downsample_block = nn.MaxPool3d if real else cnn.CMaxPool3d
-            upsample_block = UpsampleBlock3d if real else CUpsampleBlock3d
+            double_conv_block = _DoubleConvBlock3d if real \
+                else _CDoubleConvBlock3d
+            downsample_block = MaxPool3d if real else CMaxPool3d
+            upsample_block = _UpsampleBlock3d if real else _CUpsampleBlock3d
             conv_block = ConvBlock3d if real else CConvBlock3d
         elif dimensions == '2+1':
-            double_conv_block = DoubleConvBlock2plus1d if real \
-                else CDoubleConvBlock2plus1d
-            downsample_block = nn.MaxPool3d if real else cnn.CMaxPool3d
-            upsample_block = UpsampleBlock2plus1d if real \
-                else CUpsampleBlock2plus1d
+            double_conv_block = _DoubleConvBlock2plus1d if real \
+                else _CDoubleConvBlock2plus1d
+            downsample_block = MaxPool3d if real else CMaxPool3d
+            upsample_block = _UpsampleBlock2plus1d if real \
+                else _CUpsampleBlock2plus1d
             conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
         else:
             raise ValueError('dimensions should be 2 or 3 or 2+1.')
@@ -209,7 +208,7 @@ class UNet(nn.Module):
         return self.last(input)
 
 
-class UNet2d(UNet):
+class UNet2d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -218,7 +217,7 @@ class UNet2d(UNet):
                          normalization, activation)
 
 
-class UNet3d(UNet):
+class UNet3d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -227,7 +226,7 @@ class UNet3d(UNet):
                          normalization, activation)
 
 
-class UNet2plus1d(UNet):
+class UNet2plus1d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=64, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -236,7 +235,7 @@ class UNet2plus1d(UNet):
                          normalization, activation)
 
 
-class CUNet2d(UNet):
+class CUNet2d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -245,7 +244,7 @@ class CUNet2d(UNet):
                          normalization, activation)
 
 
-class CUNet3d(UNet):
+class CUNet3d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
@@ -254,7 +253,7 @@ class CUNet3d(UNet):
                          normalization, activation)
 
 
-class CUNet2plus1d(UNet):
+class CUNet2plus1d(_UNet):
     def __init__(self, in_channels, out_channels, depth,
                  num_filters=32, kernel_size=3, bias=True,
                  normalization=None, activation='ReLU'):
