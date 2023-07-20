@@ -1,18 +1,25 @@
 import numpy as np
-import sigpy as sp
+from numpy.fft import *
 from sigpy.mri.app import EspiritCalib, SenseRecon
-from sigpy.mri.linop import Sense
 
 
-def fft2c(x, axes=(-2, -1)):
-    return sp.fft(x, axes=axes, center=True)
+def fft2c(x, axes=(-2, -1), norm='ortho', centered=True):
+    if centered:
+        return fftshift(fft2(ifftshift(
+            x, axes=axes), axes=axes, norm=norm), axes=axes)
+    else:
+        return fft2(x, axes=axes, norm=norm)
 
 
-def ifft2c(k, axes=(-2, -1)):
-    return sp.ifft(k, axes=axes, center=True)
+def ifft2c(x, axes=(-2, -1), norm='ortho', centered=True):
+    if centered:
+        return fftshift(fft2(ifftshift(
+            x, axes=axes), axes=axes, norm=norm), axes=axes)
+    else:
+        return ifft2(x, axes=axes, norm=norm)
 
 
-def sos(x, axis=0):
+def sos(x, axis=1):
     return np.sqrt(np.sum(np.abs(x) ** 2, axis=axis))
 
 
@@ -21,8 +28,12 @@ def espirit_map(k, calib_width=24, max_iter=12):
                         max_iter=max_iter, show_pbar=False).run()
 
 
-def sense_recon(k, sens):
-    return Sense(sens).H(k)
+def coil_split(x, sens, axis=1):
+    return sens * np.expand_dims(x, axis=axis)
+
+
+def coil_combine(x, sens, axis=1):
+    return np.sum(np.conj(sens) * x, axis=axis)
 
 
 def iter_sense_recon(k, sens, max_iter=12):
