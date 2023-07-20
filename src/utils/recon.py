@@ -13,7 +13,7 @@ def fft2c(x, axes=(-2, -1), norm='ortho', centered=True):
 
 def ifft2c(x, axes=(-2, -1), norm='ortho', centered=True):
     if centered:
-        return fftshift(fft2(ifftshift(
+        return fftshift(ifft2(ifftshift(
             x, axes=axes), axes=axes, norm=norm), axes=axes)
     else:
         return ifft2(x, axes=axes, norm=norm)
@@ -28,11 +28,11 @@ def espirit_map(k, calib_width=24, max_iter=12):
                         max_iter=max_iter, show_pbar=False).run()
 
 
-def coil_split(x, sens, axis=1):
+def coil_split(x, sens, axis=0):
     return sens * np.expand_dims(x, axis=axis)
 
 
-def coil_combine(x, sens, axis=1):
+def coil_combine(x, sens, axis=0):
     return np.sum(np.conj(sens) * x, axis=axis)
 
 

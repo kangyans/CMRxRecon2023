@@ -12,7 +12,7 @@ def get_parser():
                         help='Root path of the raw data.')
     parser.add_argument('--new_root', type=str,
                         help='Root path of the new dataset.')
-    parser.add_argument('--multi_coil', type=bool,
+    parser.add_argument('--multi_coil', default=False, action='store_true',
                         help='Single coil or multi coil.')
     return parser
 
@@ -35,13 +35,15 @@ def build_dataset(old_root, new_root, multi_coil):
                     kfull = kfull['real'] + 1j * kfull['imag']
                     imfull = ifft2c(kfull)
                     if multi_coil:
-                        avg_kfull = np.mean(kfull, axis=0)
-                        sens = np.zeros_like(avg_kfull)
-                        temp = np.zeros_like(imfull.shape[:2] +
+                        sens = np.zeros_like(imfull, shape=imfull.shape[1:])
+                        temp = np.zeros_like(imfull, shape=imfull.shape[:2] +
                                              imfull.shape[3:])
-                        for i in range(avg_kfull.shape[0]):
-                            sens[i] = espirit_map(avg_kfull[i])
-                            temp[:, i] = coil_combine(imfull[:, i], sens[i])
+                        for i in range(imfull.shape[1]):
+                            sens[i] = espirit_map(
+                                np.mean(kfull[:, i], axis=0))
+                            for j in range(imfull.shape[0]):
+                                temp[j, i] = coil_combine(
+                                    imfull[j, i], sens[i])
                         imfull = temp
                         h5write(new_filename, 'sens', sens)
                     h5write(new_filename, 'kfull', kfull)
