@@ -42,11 +42,11 @@ class _CascadeNet(Module):
                                  normalization, activation))
             self.dcs.append(dc(lamda))
 
-    def forward(self, x, mask, k0, *args):
+    def forward(self, x, mask, ksub, *args):
         for net, dc in zip(self.nets, self.dcs):
             x = net(x)
-            x = dc(x, mask, k0, args[0]) if self.multi_coil \
-                else dc(x, mask, k0)
+            x = dc(x, mask, ksub, args[0]) if self.multi_coil \
+                else dc(x, mask, ksub)
         return x
 
 
