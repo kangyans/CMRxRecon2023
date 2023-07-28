@@ -2,71 +2,6 @@ import torch.nn.functional as F
 from conv import *
 
 
-class _DoubleConvBlock(Module):
-    def __init__(self, dimensions, real, in_channels,
-                 out_channels, kernel_size=3, bias=True,
-                 normalization=None, activation=None):
-        super().__init__()
-        if dimensions == '2':
-            conv_block = ConvBlock2d if real else CConvBlock2d
-        elif dimensions == '3':
-            conv_block = ConvBlock3d if real else CConvBlock3d
-        elif dimensions == '2+1':
-            conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
-        else:
-            raise ValueError('dimensions should be 2 or 3 or 2+1.')
-        self.block = Sequential(
-            conv_block(in_channels, out_channels, kernel_size,
-                       bias, normalization, activation),
-            conv_block(out_channels, out_channels, kernel_size,
-                       bias, normalization, activation))
-
-    def forward(self, input):
-        return self.block(input)
-
-
-class _DoubleConvBlock2d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 bias=True, normalization=None, activation=None):
-        super().__init__('2', True, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
-class _DoubleConvBlock3d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 bias=True, normalization=None, activation=None):
-        super().__init__('3', True, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
-class _DoubleConvBlock2plus1d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 bias=True, normalization=None, activation=None):
-        super().__init__('2+1', True, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
-class _CDoubleConvBlock2d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 bias=True, normalization=None, activation=None):
-        super().__init__('2', False, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
-class _CDoubleConvBlock3d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
-                 normalization=None, activation=None):
-        super().__init__('3', False, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
-class _CDoubleConvBlock2plus1d(_DoubleConvBlock):
-    def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
-                 normalization=None, activation=None):
-        super().__init__('2+1', False, in_channels, out_channels,
-                         kernel_size, bias, normalization, activation)
-
-
 class _UpsampleBlock(Module):
     def __init__(self, dimensions, real, in_channels,
                  out_channels, bias=True):
@@ -128,20 +63,20 @@ class _UNet(Module):
         if depth < 2:
             raise ValueError('depth should be greater than 2.')
         if dimensions == '2':
-            double_conv_block = _DoubleConvBlock2d if real \
-                else _CDoubleConvBlock2d
+            double_conv_block = DoubleConvBlock2d if real \
+                else CDoubleConvBlock2d
             downsample_block = MaxPool2d if real else CMaxPool2d
             upsample_block = _UpsampleBlock2d if real else _CUpsampleBlock2d
             conv_block = ConvBlock2d if real else CConvBlock2d
         elif dimensions == '3':
-            double_conv_block = _DoubleConvBlock3d if real \
-                else _CDoubleConvBlock3d
+            double_conv_block = DoubleConvBlock3d if real \
+                else CDoubleConvBlock3d
             downsample_block = MaxPool3d if real else CMaxPool3d
             upsample_block = _UpsampleBlock3d if real else _CUpsampleBlock3d
             conv_block = ConvBlock3d if real else CConvBlock3d
         elif dimensions == '2+1':
-            double_conv_block = _DoubleConvBlock2plus1d if real \
-                else _CDoubleConvBlock2plus1d
+            double_conv_block = DoubleConvBlock2plus1d if real \
+                else CDoubleConvBlock2plus1d
             downsample_block = MaxPool3d if real else CMaxPool3d
             upsample_block = _UpsampleBlock2plus1d if real \
                 else _CUpsampleBlock2plus1d

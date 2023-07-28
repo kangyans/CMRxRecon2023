@@ -191,3 +191,68 @@ class CConvBlock2plus1d(Module):
 
     def forward(self, input):
         return self.block(input)
+
+
+class _DoubleConvBlock(Module):
+    def __init__(self, dimensions, real, in_channels,
+                 out_channels, kernel_size=3, bias=True,
+                 normalization=None, activation=None):
+        super().__init__()
+        if dimensions == '2':
+            conv_block = ConvBlock2d if real else CConvBlock2d
+        elif dimensions == '3':
+            conv_block = ConvBlock3d if real else CConvBlock3d
+        elif dimensions == '2+1':
+            conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
+        else:
+            raise ValueError('dimensions should be 2 or 3 or 2+1.')
+        self.block = Sequential(
+            conv_block(in_channels, out_channels, kernel_size,
+                       bias, normalization, activation),
+            conv_block(out_channels, out_channels, kernel_size,
+                       bias, normalization, activation))
+
+    def forward(self, input):
+        return self.block(input)
+
+
+class DoubleConvBlock2d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3,
+                 bias=True, normalization=None, activation=None):
+        super().__init__('2', True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
+
+
+class DoubleConvBlock3d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3,
+                 bias=True, normalization=None, activation=None):
+        super().__init__('3', True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
+
+
+class DoubleConvBlock2plus1d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3,
+                 bias=True, normalization=None, activation=None):
+        super().__init__('2+1', True, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
+
+
+class CDoubleConvBlock2d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3,
+                 bias=True, normalization=None, activation=None):
+        super().__init__('2', False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
+
+
+class CDoubleConvBlock3d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
+                 normalization=None, activation=None):
+        super().__init__('3', False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
+
+
+class CDoubleConvBlock2plus1d(_DoubleConvBlock):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
+                 normalization=None, activation=None):
+        super().__init__('2+1', False, in_channels, out_channels,
+                         kernel_size, bias, normalization, activation)
