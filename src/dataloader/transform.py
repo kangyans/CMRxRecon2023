@@ -117,3 +117,4 @@ class ComplexReal(object):
                                       item['imfull'].imag], self.dim)
         item['imsub'] = torch.stack([item['imsub'].real,
                                      item['imsub'].imag], self.dim)
+        return item
