@@ -1,6 +1,6 @@
-from dc import *
-from unet import *
-from resnet import *
+from .dc import *
+from .unet import *
+from .resnet import *
 
 
 class _CascadeNet(Module):
@@ -28,26 +28,26 @@ class _CascadeNet(Module):
             else:
                 raise ValueError('dimensions should be 2 or 3 or 2+1.')
         else:
-            raise ValueError('net_type should be unet or resnet')
+            raise ValueError('net_type should be unet or resnet.')
         self.multi_coil = multi_coil
         if self.multi_coil:
             dc = MultiCoilDC if real else CMultiCoilDC
         else:
             dc = SingleCoilDC if real else CSingleCoilDC
-        self.nets = []
-        self.dcs = []
+        self.nets = ModuleList()
+        self.dcs = ModuleList()
         for _ in range(cascade_depth):
             self.nets.append(net(in_channels, out_channels, net_depth,
                                  num_filters, kernel_size, bias,
                                  normalization, activation))
             self.dcs.append(dc(lamda))
 
-    def forward(self, x, mask, ksub, *args):
+    def forward(self, im, mask, ksub, *args):
         for net, dc in zip(self.nets, self.dcs):
-            x = net(x)
-            x = dc(x, mask, ksub, args[0]) if self.multi_coil \
-                else dc(x, mask, ksub)
-        return x
+            im = net(im)
+            im = dc(im, mask, ksub, args[0]) if self.multi_coil \
+                else dc(im, mask, ksub)
+        return im
 
 
 class SingleCoilCascadeResNet2d(_CascadeNet):

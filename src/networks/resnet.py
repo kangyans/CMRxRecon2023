@@ -1,4 +1,4 @@
-from conv import *
+from .conv import *
 
 
 class _ResBlock(Module):

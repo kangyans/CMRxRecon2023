@@ -1,4 +1,4 @@
-from ctorch import *
+from .ctorch import *
 
 
 class _ConvBlock(Module):

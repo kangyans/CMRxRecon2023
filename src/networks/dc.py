@@ -56,8 +56,8 @@ class CoilSplit(Module):
         super().__init__()
         self.dim = dim
 
-    def forward(self, x, sens):
-        return sens * torch.unsqueeze(x, dim=self.dim)
+    def forward(self, im, sens):
+        return sens * torch.unsqueeze(im, dim=self.dim)
 
 
 class CoilCombine(Module):
@@ -65,8 +65,8 @@ class CoilCombine(Module):
         super().__init__()
         self.dim = dim
 
-    def forward(self, x, sens):
-        return torch.sum(torch.conj_physical(sens) * x, dim=self.dim)
+    def forward(self, im, sens):
+        return torch.sum(torch.conj_physical(sens) * im, dim=self.dim)
 
 
 class SingleCoilDC(Module):
@@ -78,14 +78,14 @@ class SingleCoilDC(Module):
         self.ifft2c = IFFT2C()
         self.complex_real = ComplexReal()
 
-    def forward(self, x, mask, ksub):
-        x = self.real_complex(x)
-        kcnn = self.fft2c(x)
+    def forward(self, im, mask, ksub):
+        im = self.real_complex(im)
+        kcnn = self.fft2c(im)
         k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
             (1 - mask) * kcnn
-        x = self.ifft2c(k)
-        x = self.complex_real(x)
-        return x
+        im = self.ifft2c(k)
+        im = self.complex_real(im)
+        return im
 
 
 class MultiCoilDC(Module):
@@ -99,16 +99,16 @@ class MultiCoilDC(Module):
         self.coil_combine = CoilCombine()
         self.complex_real = ComplexReal()
 
-    def forward(self, x, mask, ksub, sens):
-        x = self.real_complex(x)
-        x = self.coil_split(x, sens)
-        kcnn = self.fft2c(x)
+    def forward(self, im, mask, ksub, sens):
+        im = self.real_complex(im)
+        im = self.coil_split(im, sens)
+        kcnn = self.fft2c(im)
         k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
             (1 - mask) * kcnn
-        x = self.ifft2c(k)
-        x = self.coil_combine(x, sens)
-        x = self.complex_real(x)
-        return x
+        im = self.ifft2c(k)
+        im = self.coil_combine(im, sens)
+        im = self.complex_real(im)
+        return im
 
 
 class CSingleCoilDC(Module):
@@ -118,12 +118,12 @@ class CSingleCoilDC(Module):
         self.fft2c = FFT2C()
         self.ifft2c = IFFT2C()
 
-    def forward(self, x, mask, ksub):
-        kcnn = self.fft2c(x)
+    def forward(self, im, mask, ksub):
+        kcnn = self.fft2c(im)
         k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
             (1 - mask) * kcnn
-        x = self.ifft2c(k)
-        return x
+        im = self.ifft2c(k)
+        return im
 
 
 class CMultiCoilDC(Module):
@@ -135,11 +135,11 @@ class CMultiCoilDC(Module):
         self.ifft2c = IFFT2C()
         self.coil_combine = CoilCombine()
 
-    def forward(self, x, mask, ksub, sens):
-        x = self.coil_split(x, sens)
-        kcnn = self.fft2c(x)
+    def forward(self, im, mask, ksub, sens):
+        im = self.coil_split(im, sens)
+        kcnn = self.fft2c(im)
         k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
             (1 - mask) * kcnn
-        x = self.ifft2c(k)
-        x = self.coil_combine(x, sens)
-        return x
+        im = self.ifft2c(k)
+        im = self.coil_combine(im, sens)
+        return im

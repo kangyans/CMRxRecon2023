@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from conv import *
+from .conv import *
 
 
 class _UpsampleBlock(Module):
@@ -84,11 +84,11 @@ class _UNet(Module):
         else:
             raise ValueError('dimensions should be 2 or 3 or 2+1.')
         self.dimensions = dimensions
-        self.down_conv_blocks = [
+        self.down_conv_blocks = ModuleList([
             double_conv_block(in_channels, num_filters, kernel_size,
-                              bias, normalization, activation)]
-        self.downsample_blocks = [
-            downsample_block(kernel_size=2)]
+                              bias, normalization, activation)])
+        self.downsample_blocks = ModuleList([
+            downsample_block(kernel_size=2)])
         for _ in range(depth - 1):
             self.down_conv_blocks.append(
                 double_conv_block(num_filters, num_filters * 2, kernel_size,
@@ -99,8 +99,8 @@ class _UNet(Module):
         self.bottleneck = double_conv_block(num_filters, num_filters * 2,
                                             kernel_size, bias,
                                             normalization, activation)
-        self.upsample_blocks = []
-        self.up_conv_blocks = []
+        self.upsample_blocks = ModuleList()
+        self.up_conv_blocks = ModuleList()
         for _ in range(depth - 1):
             self.upsample_blocks.append(
                 upsample_block(num_filters * 2, num_filters, bias))
