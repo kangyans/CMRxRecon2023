@@ -4,10 +4,13 @@ from torch.fft import *
 
 class ToTensor(object):
     def __call__(self, item):
-        item['kfull'] = torch.from_numpy(item['kfull'])
-        item['imfull'] = torch.from_numpy(item['imfull'])
+        item['kfull'] = torch.unsqueeze(
+            torch.from_numpy(item['kfull']), dim=0)
+        item['imfull'] = torch.unsqueeze(
+            torch.from_numpy(item['imfull']), dim=0)
         if 'sens' in item:
-            item['sens'] = torch.from_numpy(item['sens'])
+            item['sens'] = torch.unsqueeze(
+                torch.from_numpy(item['sens']), dim=0)
         return item
 
 
@@ -15,12 +18,12 @@ class RandomFlip(object):
     def __call__(self, item):
         if torch.rand((1,)) < 0.5:
             item['kfull'] = torch.flip(item['kfull'], (-1,))
-            item['imfull'] = torch.flip(item['kfull'], (-1,))
+            item['imfull'] = torch.flip(item['imfull'], (-1,))
             if 'sens' in item:
                 item['sens'] = torch.flip(item['sens'], (-1,))
         if torch.rand((1,)) < 0.5:
             item['kfull'] = torch.flip(item['kfull'], (-2,))
-            item['imfull'] = torch.flip(item['kfull'], (-2,))
+            item['imfull'] = torch.flip(item['imfull'], (-2,))
             if 'sens' in item:
                 item['sens'] = torch.flip(item['sens'], (-2,))
         return item
@@ -81,8 +84,8 @@ class CoilSplit(object):
         self.dim = dim
 
     def __call__(self, item):
-        item['imsub'] = item['sens'] * torch.unsqueeze(item['imsub'],
-                                                       dim=self.dim)
+        item['imsub'] = item['sens'] * \
+                        torch.unsqueeze(item['imsub'], dim=self.dim)
         return item
 
 
@@ -101,10 +104,12 @@ class RealComplex(object):
         self.dim = dim
 
     def __call__(self, item):
-        item['imfull'] = torch.complex(item['imfull'].select(self.dim, 0),
-                                       item['imfull'].select(self.dim, 1))
-        item['imsub'] = torch.complex(item['imsub'].select(self.dim, 0),
-                                      item['imsub'].select(self.dim, 1))
+        item['imfull'] = torch.unsqueeze(
+            torch.complex(item['imfull'].select(self.dim, 0),
+                          item['imfull'].select(self.dim, 1)), dim=self.dim)
+        item['imsub'] = torch.unsqueeze(
+            torch.complex(item['imsub'].select(self.dim, 0),
+                          item['imsub'].select(self.dim, 1)), dim=self.dim)
         return item
 
 
@@ -113,8 +118,8 @@ class ComplexReal(object):
         self.dim = dim
 
     def __call__(self, item):
-        item['imfull'] = torch.stack([item['imfull'].real,
-                                      item['imfull'].imag], self.dim)
-        item['imsub'] = torch.stack([item['imsub'].real,
-                                     item['imsub'].imag], self.dim)
+        item['imfull'] = torch.cat([item['imfull'].real,
+                                    item['imfull'].imag], dim=self.dim)
+        item['imsub'] = torch.cat([item['imsub'].real,
+                                   item['imsub'].imag], dim=self.dim)
         return item
