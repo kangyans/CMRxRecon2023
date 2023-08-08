@@ -19,8 +19,8 @@ def ifft2c(x, axes=(-2, -1), norm='ortho', centered=True):
         return ifft2(x, axes=axes, norm=norm)
 
 
-def sos(x, axis=1):
-    return np.sqrt(np.sum(np.abs(x) ** 2, axis=axis))
+def sos(im, axis=1):
+    return np.sqrt(np.sum(np.abs(im) ** 2, axis=axis))
 
 
 def espirit_map(k, calib_width=24, max_iter=12):
@@ -28,12 +28,12 @@ def espirit_map(k, calib_width=24, max_iter=12):
                         max_iter=max_iter, show_pbar=False).run()
 
 
-def coil_split(x, sens, axis=0):
-    return sens * np.expand_dims(x, axis=axis)
+def coil_split(im, sens, axis=0):
+    return sens * np.expand_dims(im, axis=axis)
 
 
-def coil_combine(x, sens, axis=0):
-    return np.sum(np.conj(sens) * x, axis=axis)
+def coil_combine(im, sens, axis=0):
+    return np.sum(np.conj(sens) * im, axis=axis)
 
 
 def iter_sense_recon(k, sens, max_iter=12):

@@ -9,7 +9,9 @@ class RealComplex(Module):
         self.dim = dim
 
     def forward(self, x):
-        return torch.complex(x.select(self.dim, 0), x.select(self.dim, 1))
+        return torch.unsqueeze(
+            torch.complex(x.select(self.dim, 0),
+                          x.select(self.dim, 1)), dim=self.dim)
 
 
 class ComplexReal(Module):
@@ -18,7 +20,7 @@ class ComplexReal(Module):
         self.dim = dim
 
     def forward(self, x):
-        return torch.stack([x.real, x.imag], self.dim)
+        return torch.cat([x.real, x.imag], dim=self.dim)
 
 
 class FFT2C(Module):
@@ -52,7 +54,7 @@ class IFFT2C(Module):
 
 
 class CoilSplit(Module):
-    def __init__(self, dim=1):
+    def __init__(self, dim=2):
         super().__init__()
         self.dim = dim
 
@@ -61,7 +63,7 @@ class CoilSplit(Module):
 
 
 class CoilCombine(Module):
-    def __init__(self, dim=1):
+    def __init__(self, dim=2):
         super().__init__()
         self.dim = dim
 

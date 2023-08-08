@@ -74,9 +74,9 @@ class ConvBlock2plus1d(Module):
     def __init__(self, in_channels, out_channels, kernel_size=3,
                  bias=True, normalization=None, activation=None):
         super().__init__()
-        mid_channels = int((kernel_size ** 3 * in_channels * out_channels) /
-                           (kernel_size ** 2 * in_channels +
-                            kernel_size * out_channels))
+        mid_channels = round(
+            (kernel_size ** 3 * in_channels * out_channels) /
+            (kernel_size ** 2 * in_channels + kernel_size * out_channels))
         layers = [Conv3d(in_channels, mid_channels,
                          (1, kernel_size, kernel_size),
                          padding='same', bias=bias)]
@@ -146,9 +146,9 @@ class CConvBlock2plus1d(Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, bias=True,
                  normalization=None, activation=None):
         super().__init__()
-        mid_channels = int((kernel_size ** 3 * in_channels * out_channels) /
-                           (kernel_size ** 2 * in_channels +
-                            kernel_size * out_channels))
+        mid_channels = round(
+            (kernel_size ** 3 * in_channels * out_channels) /
+            (kernel_size ** 2 * in_channels + kernel_size * out_channels))
         layers = [CConv3d(in_channels, mid_channels,
                           (1, kernel_size, kernel_size),
                           padding='same', bias=bias)]
