@@ -45,9 +45,9 @@ def build_dataset(old_root, new_root, multi_coil):
                                 temp[j, i] = coil_combine(
                                     imfull[j, i], sens[i])
                         imfull = temp
-                        h5write(new_filename, 'sens', sens)
-                    h5write(new_filename, 'kfull', kfull)
-                    h5write(new_filename, 'imfull', imfull)
+                        h5write(new_filename, 'sens', sens.astype(np.csingle))
+                    h5write(new_filename, 'kfull', kfull.astype(np.csingle))
+                    h5write(new_filename, 'imfull', imfull.astype(np.csingle))
             print('Finish processing subject {}: {:.3f} seconds.'.format(
                 subject, time.perf_counter() - start_time))
 
