@@ -22,7 +22,7 @@
       1. 2D or 2D+t (3D) or 3D+t (4D)
       2. complex-valued or two-channel real-valued
       3. UNet CNN or ResNet CNN
-- [ ] Write training code
+- [x] Write training code
 - [ ] Run experiments
 - [ ] Compare the performance of different models
 - [ ] Write deployment code
