@@ -36,21 +36,21 @@ class CMRDataset(Dataset):
         if self.dimensions == '2':
             filename, i, j = self.map[idx]
             item['kfull'] = np.expand_dims(
-                h5read(filename, 'kfull')[i][j].astype(np.csingle), 0)
+                h5read(filename, 'kfull')[i][j], 0)
             item['imfull'] = np.expand_dims(
-                h5read(filename, 'imfull')[i][j].astype(np.csingle), 0)
+                h5read(filename, 'imfull')[i][j], 0)
             if self.multi_coil:
                 item['sens'] = np.expand_dims(
-                    h5read(filename, 'sens')[j].astype(np.csingle), 0)
+                    h5read(filename, 'sens')[j], 0)
         else:
             filename, j = self.map[idx]
             item['kfull'] = np.expand_dims(
-                h5read(filename, 'kfull')[:, j].astype(np.csingle), 0)
+                h5read(filename, 'kfull')[:, j], 0)
             item['imfull'] = np.expand_dims(
-                h5read(filename, 'imfull')[:, j].astype(np.csingle), 0)
+                h5read(filename, 'imfull')[:, j], 0)
             if self.multi_coil:
                 item['sens'] = np.tile(h5read(filename, 'sens')[j],
-                                       (1, item['kfull'].shape[1], 1, 1, 1)).astype(np.csingle)
+                                       (1, item['kfull'].shape[1], 1, 1, 1))
                 item['kfull'] = np.swapaxes(item['kfull'], 1, 2)
                 item['sens'] = np.swapaxes(item['sens'], 1, 2)
         return self.transform(item)
