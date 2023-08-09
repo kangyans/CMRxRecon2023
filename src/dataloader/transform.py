@@ -4,13 +4,10 @@ from torch.fft import *
 
 class ToTensor(object):
     def __call__(self, item):
-        item['kfull'] = torch.unsqueeze(
-            torch.from_numpy(item['kfull']), dim=0)
-        item['imfull'] = torch.unsqueeze(
-            torch.from_numpy(item['imfull']), dim=0)
+        item['kfull'] = torch.from_numpy(item['kfull'])
+        item['imfull'] = torch.from_numpy(item['imfull'])
         if 'sens' in item:
-            item['sens'] = torch.unsqueeze(
-                torch.from_numpy(item['sens']), dim=0)
+            item['sens'] = torch.from_numpy(item['sens'])
         return item
 
 
