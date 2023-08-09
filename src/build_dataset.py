@@ -33,6 +33,8 @@ def build_dataset(old_root, new_root, multi_coil):
                     kfull = h5read(old_filename, 'kspace_full' if multi_coil
                                    else 'kspace_single_full')
                     kfull = kfull['real'] + 1j * kfull['imag']
+                    for i in range(kfull.shape[1]):
+                        kfull[:, i] /= np.max(np.abs(kfull[:, i]))
                     imfull = ifft2c(kfull)
                     if multi_coil:
                         sens = np.zeros_like(imfull, shape=imfull.shape[1:])
