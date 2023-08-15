@@ -1,197 +1,244 @@
+from .ctorch import *
 import torch.nn.functional as F
-from .conv import *
 
 
-class _UpsampleBlock(Module):
-    def __init__(self, dimensions, real, in_channels,
-                 out_channels, bias=True):
+class DoubleConvBlock(Module):
+    def __init__(self, in_channels, out_channels, mid_channels=None,
+                 kernel_size=3, bias=False, normalization='instance',
+                 activation='relu'):
         super().__init__()
-        if dimensions == '2':
-            upsample = Upsample if real else CUpsample
-            conv_block = ConvBlock2d if real else CConvBlock2d
-        elif dimensions == '3':
-            upsample = Upsample if real else CUpsample
-            conv_block = ConvBlock3d if real else CConvBlock3d
-        elif dimensions == '2+1':
-            upsample = Upsample if real else CUpsample
-            conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
-        else:
-            raise ValueError('dimensions should be 2 or 3 or 2+1.')
+        if normalization != 'instance' and normalization != 'batch':
+            raise ValueError('normalization should be or instance or batch.')
+        if activation != 'relu' and activation != 'leakyrelu':
+            raise ValueError('activation should be relu or leakyrelu.')
+        if not mid_channels:
+            mid_channels = out_channels
         self.block = Sequential(
-            upsample(scale_factor=2, mode='bilinear'),
-            conv_block(in_channels, out_channels, kernel_size=1, bias=bias))
+            Conv2d(in_channels, mid_channels, kernel_size, bias=bias),
+            InstanceNorm2d(mid_channels) if normalization == 'instance'
+            else BatchNorm2d(mid_channels),
+            ReLU(inplace=True) if activation == 'relu'
+            else LeakyReLU(negative_slope=0.1, inplace=True),
+            Conv2d(mid_channels, out_channels, kernel_size, bias=bias),
+            InstanceNorm2d(out_channels) if normalization == 'instance'
+            else BatchNorm2d(out_channels),
+            ReLU(inplace=True) if activation == 'relu'
+            else LeakyReLU(negative_slope=0.1, inplace=True))
 
     def forward(self, input):
         return self.block(input)
 
 
-class _UpsampleBlock2d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('2', True, in_channels, out_channels, bias)
-
-
-class _UpsampleBlock3d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('3', True, in_channels, out_channels, bias)
-
-
-class _UpsampleBlock2plus1d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('2+1', True, in_channels, out_channels, bias)
-
-
-class _CUpsampleBlock2d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('2', False, in_channels, out_channels, bias)
-
-
-class _CUpsampleBlock3d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('3', False, in_channels, out_channels, bias)
-
-
-class _CUpsampleBlock2plus1d(_UpsampleBlock):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super().__init__('2+1', False, in_channels, out_channels, bias)
-
-
-class _UNet(Module):
-    def __init__(self, dimensions, real, in_channels, out_channels,
-                 depth, num_filters=64, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
+class CDoubleConvBlock(Module):
+    def __init__(self, in_channels, out_channels, mid_channels=None,
+                 kernel_size=3, bias=False, normalization='instance',
+                 activation='relu'):
         super().__init__()
-        if depth < 2:
-            raise ValueError('depth should be greater than 2.')
-        if dimensions == '2':
-            double_conv_block = DoubleConvBlock2d if real \
-                else CDoubleConvBlock2d
-            downsample_block = MaxPool2d if real else CMaxPool2d
-            upsample_block = _UpsampleBlock2d if real else _CUpsampleBlock2d
-            conv_block = ConvBlock2d if real else CConvBlock2d
-        elif dimensions == '3':
-            double_conv_block = DoubleConvBlock3d if real \
-                else CDoubleConvBlock3d
-            downsample_block = MaxPool3d if real else CMaxPool3d
-            upsample_block = _UpsampleBlock3d if real else _CUpsampleBlock3d
-            conv_block = ConvBlock3d if real else CConvBlock3d
-        elif dimensions == '2+1':
-            double_conv_block = DoubleConvBlock2plus1d if real \
-                else CDoubleConvBlock2plus1d
-            downsample_block = MaxPool3d if real else CMaxPool3d
-            upsample_block = _UpsampleBlock2plus1d if real \
-                else _CUpsampleBlock2plus1d
-            conv_block = ConvBlock2plus1d if real else CConvBlock2plus1d
-        else:
-            raise ValueError('dimensions should be 2 or 3 or 2+1.')
-        self.dimensions = dimensions
-        self.down_conv_blocks = ModuleList([
-            double_conv_block(in_channels, num_filters, kernel_size,
-                              bias, normalization, activation)])
-        self.downsample_blocks = ModuleList([
-            downsample_block(kernel_size=2)])
-        for _ in range(depth - 1):
-            self.down_conv_blocks.append(
-                double_conv_block(num_filters, num_filters * 2, kernel_size,
-                                  bias, normalization, activation))
-            self.downsample_blocks.append(
-                downsample_block(kernel_size=2))
-            num_filters *= 2
-        self.bottleneck = double_conv_block(num_filters, num_filters * 2,
-                                            kernel_size, bias,
-                                            normalization, activation)
-        self.upsample_blocks = ModuleList()
-        self.up_conv_blocks = ModuleList()
-        for _ in range(depth - 1):
-            self.upsample_blocks.append(
-                upsample_block(num_filters * 2, num_filters, bias))
-            self.up_conv_blocks.append(
-                double_conv_block(num_filters * 2, num_filters, kernel_size,
-                                  bias, normalization, activation))
-            num_filters //= 2
-        self.up_sample_blocks.append(
-            upsample_block(num_filters * 2, num_filters, bias))
-        self.up_conv_blocks.append(
-            double_conv_block(num_filters * 2, num_filters, kernel_size,
-                              bias, normalization, activation))
-        self.last = conv_block(num_filters, out_channels,
-                               kernel_size=1, bias=bias)
+        if normalization != 'instance' and normalization != 'batch':
+            raise ValueError('normalization should be or instance or batch.')
+        if activation != 'relu' and activation != 'leakyrelu':
+            raise ValueError('activation should be relu or leakyrelu.')
+        if not mid_channels:
+            mid_channels = out_channels
+        self.block = Sequential(
+            CConv2d(in_channels, mid_channels, kernel_size, bias=bias),
+            CInstanceNorm2d(mid_channels) if normalization == 'instance'
+            else CBatchNorm2d(mid_channels),
+            CReLU(inplace=True) if activation == 'relu'
+            else CLeakyReLU(negative_slope=0.1, inplace=True),
+            CConv2d(mid_channels, out_channels, kernel_size, bias=bias),
+            CInstanceNorm2d(out_channels) if normalization == 'instance'
+            else CBatchNorm2d(out_channels),
+            CReLU(inplace=True) if activation == 'relu'
+            else CLeakyReLU(negative_slope=0.1, inplace=True))
 
     def forward(self, input):
-        skip_connections = []
-        for down_conv_block, downsample_block in \
-                zip(self.down_conv_blocks, self.downsample_blocks):
-            input = down_conv_block(input)
-            skip_connections.append(input)
-            input = downsample_block(input)
-        input = self.bottleneck(input)
-        for upsample_block, up_conv_block in \
-                zip(self.upsample_blocks, self.up_conv_blocks):
-            input = upsample_block(input)
-            skip_connection = skip_connections.pop()
-            if self.dimensions == '2':
-                padding = \
-                    (0, int(input.shape[-1] != skip_connection.shape[-1]),
-                     0, int(input.shape[-2] != skip_connection.shape[-2]))
-            else:
-                padding = (
-                    0, int(input.shape[-1] != skip_connection.shape[-1]),
-                    0, int(input.shape[-2] != skip_connection.shape[-2]),
-                    0, int(input.shape[-3] != skip_connection.shape[-3]))
-            if sum(padding) != 0:
-                input = F.pad(input, padding)
-            input = up_conv_block(torch.cat([input, skip_connection]), dim=1)
-        return self.last(input)
+        return self.block(input)
 
 
-class UNet2d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=64, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('2', True, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class DownBlock(Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
+                 normalization='instance', activation='relu', down='avg'):
+        super().__init__()
+        if down != 'avg' and down != 'max':
+            raise ValueError('down should be avg or max.')
+        self.down_sample = AvgPool2d(kernel_size=2) if down == 'avg' \
+            else MaxPool2d(kernel_size=2)
+        self.down_conv = DoubleConvBlock(
+            in_channels, out_channels, None,
+            kernel_size, bias, normalization, activation)
+
+    def forward(self, input):
+        return self.down_conv(self.down_sample(input))
 
 
-class UNet3d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=64, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('3', True, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class CDownBlock(Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
+                 normalization='instance', activation='relu', down='avg'):
+        super().__init__()
+        if down != 'avg' and down != 'max':
+            raise ValueError('down should be avg or max.')
+        self.down_sample = CAvgPool2d(kernel_size=2) if down == 'avg' \
+            else CMaxPool2d(kernel_size=2)
+        self.down_conv = CDoubleConvBlock(
+            in_channels, out_channels, None,
+            kernel_size, bias, normalization, activation)
+
+    def forward(self, input):
+        return self.down_conv(self.down_sample(input))
 
 
-class UNet2plus1d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=64, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('2+1', True, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class UpBlock(Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
+                 normalization='instance', activation='relu', up='bilinear'):
+        super().__init__()
+        if up != 'bilinear' and up != 'convtranspose':
+            raise ValueError('up should be bilinear or convtranspose.')
+        if up == 'bilinear':
+            self.up_sample = UpsamplingBilinear2d(scale_factor=2)
+            self.up_conv = DoubleConvBlock(
+                in_channels, out_channels, in_channels // 2,
+                kernel_size, bias, normalization, activation)
+        else:
+            self.up_sample = ConvTranspose2d(
+                in_channels, in_channels // 2,
+                kernel_size=2, stride=2, bias=bias)
+            self.up_conv = DoubleConvBlock(
+                in_channels, out_channels, None,
+                kernel_size, bias, normalization, activation)
+
+    def forward(self, input, skip_connection):
+        input = self.up_sample(input)
+        diffw = skip_connection.shape[-1] - input.shape[-1]
+        diffh = skip_connection.shape[-2] - input.shape[-2]
+        input = F.pad(input, (diffw // 2, diffw - diffw // 2,
+                              diffh // 2, diffh - diffh // 2))
+        return self.up_conv(torch.cat((skip_connection, input), dim=1))
 
 
-class CUNet2d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=32, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('2', False, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class CUpBlock(Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
+                 normalization='instance', activation='relu', up='bilinear'):
+        super().__init__()
+        if up != 'bilinear' and up != 'convtranspose':
+            raise ValueError('up should be bilinear or convtranspose.')
+        if up == 'bilinear':
+            self.up_sample = CUpsamplingBilinear2d(scale_factor=2)
+            self.up_conv = CDoubleConvBlock(
+                in_channels, out_channels, in_channels // 2,
+                kernel_size, bias, normalization, activation)
+        else:
+            self.up_sample = CConvTranspose2d(
+                in_channels, in_channels // 2,
+                kernel_size=2, stride=2, bias=bias)
+            self.up_conv = CDoubleConvBlock(
+                in_channels, out_channels, None,
+                kernel_size, bias, normalization, activation)
+
+    def forward(self, input, skip_connection):
+        input = self.up_sample(input)
+        diffw = skip_connection.shape[-1] - input.shape[-1]
+        diffh = skip_connection.shape[-2] - input.shape[-2]
+        input = F.pad(input, (diffw // 2, diffw - diffw // 2,
+                              diffh // 2, diffh - diffh // 2))
+        return self.up_conv(torch.cat((skip_connection, input), dim=1))
 
 
-class CUNet3d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=32, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('3', False, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class UNet(Module):
+    def __init__(self, in_channels, out_channels, num_filters=64,
+                 kernel_size=3, bias=False, normalization='instance',
+                 activation='ReLU', down='avg', up='bilinear'):
+        super().__init__()
+        factor = 2 if up == 'bilinear' else 1
+        self.first = DoubleConvBlock(
+            in_channels, num_filters, None,
+            kernel_size, bias, normalization, activation)
+        self.down1 = DownBlock(
+            num_filters, num_filters * 2, kernel_size,
+            bias, normalization, activation, down)
+        self.down2 = DownBlock(
+            num_filters * 2, num_filters * 4, kernel_size,
+            bias, normalization, activation, down)
+        self.down3 = DownBlock(
+            num_filters * 4, num_filters * 8, kernel_size,
+            bias, normalization, activation, down)
+        self.down4 = DownBlock(
+            num_filters * 8, num_filters * 16 // factor, kernel_size,
+            bias, normalization, activation, down)
+        self.up4 = UpBlock(
+            num_filters * 16, num_filters * 8 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up3 = UpBlock(
+            num_filters * 8, num_filters * 4 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up2 = UpBlock(
+            num_filters * 4, num_filters * 2 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up1 = UpBlock(
+            num_filters * 2, num_filters, kernel_size,
+            bias, normalization, activation, up)
+        self.last = Conv2d(
+            num_filters, out_channels, kernel_size=1, bias=bias)
+
+    def forward(self, input):
+        skip_connection1 = self.first(input)
+        skip_connection2 = self.down1(skip_connection1)
+        skip_connection3 = self.down2(skip_connection2)
+        skip_connection4 = self.down3(skip_connection3)
+        output = self.down4(skip_connection4)
+        output = self.up4(output, skip_connection4)
+        output = self.up3(output, skip_connection3)
+        output = self.up2(output, skip_connection2)
+        output = self.up1(output, skip_connection1)
+        output = self.last(output)
+        return output
 
 
-class CUNet2plus1d(_UNet):
-    def __init__(self, in_channels, out_channels, depth,
-                 num_filters=32, kernel_size=3, bias=True,
-                 normalization=None, activation='ReLU'):
-        super().__init__('2+1', False, in_channels, out_channels,
-                         depth, num_filters, kernel_size, bias,
-                         normalization, activation)
+class CUNet(Module):
+    def __init__(self, in_channels, out_channels, num_filters=64,
+                 kernel_size=3, bias=False, normalization='instance',
+                 activation='ReLU', down='avg', up='bilinear'):
+        super().__init__()
+        factor = 2 if up == 'bilinear' else 1
+        self.first = CDoubleConvBlock(
+            in_channels, num_filters, None,
+            kernel_size, bias, normalization, activation)
+        self.down1 = CDownBlock(
+            num_filters, num_filters * 2, kernel_size,
+            bias, normalization, activation, down)
+        self.down2 = CDownBlock(
+            num_filters * 2, num_filters * 4, kernel_size,
+            bias, normalization, activation, down)
+        self.down3 = CDownBlock(
+            num_filters * 4, num_filters * 8, kernel_size,
+            bias, normalization, activation, down)
+        self.down4 = CDownBlock(
+            num_filters * 8, num_filters * 16 // factor, kernel_size,
+            bias, normalization, activation, down)
+        self.up4 = CUpBlock(
+            num_filters * 16, num_filters * 8 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up3 = CUpBlock(
+            num_filters * 8, num_filters * 4 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up2 = CUpBlock(
+            num_filters * 4, num_filters * 2 // factor, kernel_size,
+            bias, normalization, activation, up)
+        self.up1 = CUpBlock(
+            num_filters * 2, num_filters, kernel_size,
+            bias, normalization, activation, up)
+        self.last = CConv2d(
+            num_filters, out_channels, kernel_size=1, bias=bias)
+
+    def forward(self, input):
+        skip_connection1 = self.first(input)
+        skip_connection2 = self.down1(skip_connection1)
+        skip_connection3 = self.down2(skip_connection2)
+        skip_connection4 = self.down3(skip_connection3)
+        output = self.down4(skip_connection4)
+        output = self.up4(output, skip_connection4)
+        output = self.up3(output, skip_connection3)
+        output = self.up2(output, skip_connection2)
+        output = self.up1(output, skip_connection1)
+        output = self.last(output)
+        return output
