@@ -154,7 +154,7 @@ class MultiCoilComplexImageDomainNet(Module):
                  normalization='instance', activation='relu',
                  down='avg', up='bilinear', coil_dim=2):
         super().__init__()
-        self.inet = UNet(
+        self.inet = CUNet(
             in_channels, out_channels, net_depth, num_filters,
             kernel_size, bias, normalization, activation, down, up)
         self.ifft2c = IFFT2C()
