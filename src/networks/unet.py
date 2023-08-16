@@ -92,8 +92,8 @@ class _UpBlock(Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
                  normalization='instance', activation='relu', up='bilinear'):
         super().__init__()
-        if up != 'bilinear' and up != 'convtranspose':
-            raise ValueError('up should be bilinear or convtranspose.')
+        if up != 'bilinear' and up != 'convtran':
+            raise ValueError('up should be bilinear or convtran.')
         if up == 'bilinear':
             self.up_sample = UpsamplingBilinear2d(scale_factor=2)
             self.up_conv = _DoubleConvBlock(
@@ -120,8 +120,8 @@ class _CUpBlock(Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, bias=False,
                  normalization='instance', activation='relu', up='bilinear'):
         super().__init__()
-        if up != 'bilinear' and up != 'convtranspose':
-            raise ValueError('up should be bilinear or convtranspose.')
+        if up != 'bilinear' and up != 'convtran':
+            raise ValueError('up should be bilinear or convtran.')
         if up == 'bilinear':
             self.up_sample = CUpsamplingBilinear2d(scale_factor=2)
             self.up_conv = _CDoubleConvBlock(

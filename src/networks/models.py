@@ -38,7 +38,7 @@ class MultiCoilKspaceDomainNet(Module):
         self.coil_dim = coil_dim
 
     def forward(self, *args):
-        ksub, sens = args[0], args[1]
+        ksub, sens = args[0], args[2]
         stack = []
         for i in range(ksub.shape[self.coil_dim]):
             stack.append(self.real_complex(self.knet(self.complex_real(
@@ -80,7 +80,7 @@ class MultiCoilComplexKspaceDomainNet(Module):
         self.coil_dim = coil_dim
 
     def forward(self, *args):
-        ksub, sens = args[0], args[1]
+        ksub, sens = args[0], args[2]
         stack = []
         for i in range(ksub.shape[self.coil_dim]):
             stack.append(self.knet(ksub.select(self.coil_dim, i)))
@@ -124,7 +124,7 @@ class MultiCoilImageDomainNet(Module):
         self.coil_combine = CoilCombine(coil_dim)
 
     def forward(self, *args):
-        ksub, sens = args[0], args[1]
+        ksub, sens = args[0], args[2]
         imsub = self.coil_combine(self.ifft2c(ksub), sens)
         imcnn = self.real_complex(self.inet(self.complex_real(imsub)))
         return torch.abs(imcnn)
@@ -161,7 +161,7 @@ class MultiCoilComplexImageDomainNet(Module):
         self.coil_combine = CoilCombine(coil_dim)
 
     def forward(self, *args):
-        ksub, sens = args[0], args[1]
+        ksub, sens = args[0], args[2]
         imsub = self.coil_combine(self.ifft2c(ksub), sens)
         imcnn = self.inet(imsub)
         return torch.abs(imcnn)
