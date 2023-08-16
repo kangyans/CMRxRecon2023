@@ -71,77 +71,12 @@ class CoilCombine(Module):
         return torch.sum(torch.conj_physical(sens) * im, dim=self.dim)
 
 
-class SingleCoilDC(Module):
+class DataConsistency(Module):
     def __init__(self, lamda):
         super().__init__()
         self.lamda = lamda
-        self.real_complex = RealComplex()
-        self.fft2c = FFT2C()
-        self.ifft2c = IFFT2C()
-        self.complex_real = ComplexReal()
 
-    def forward(self, im, mask, ksub):
-        im = self.real_complex(im)
-        kcnn = self.fft2c(im)
-        k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
-            (1 - mask) * kcnn
-        im = self.ifft2c(k)
-        im = self.complex_real(im)
-        return im
-
-
-class MultiCoilDC(Module):
-    def __init__(self, lamda):
-        super().__init__()
-        self.lamda = lamda
-        self.real_complex = RealComplex()
-        self.coil_split = CoilSplit()
-        self.fft2c = FFT2C()
-        self.ifft2c = IFFT2C()
-        self.coil_combine = CoilCombine()
-        self.complex_real = ComplexReal()
-
-    def forward(self, im, mask, ksub, sens):
-        im = self.real_complex(im)
-        im = self.coil_split(im, sens)
-        kcnn = self.fft2c(im)
-        k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
-            (1 - mask) * kcnn
-        im = self.ifft2c(k)
-        im = self.coil_combine(im, sens)
-        im = self.complex_real(im)
-        return im
-
-
-class CSingleCoilDC(Module):
-    def __init__(self, lamda):
-        super().__init__()
-        self.lamda = lamda
-        self.fft2c = FFT2C()
-        self.ifft2c = IFFT2C()
-
-    def forward(self, im, mask, ksub):
-        kcnn = self.fft2c(im)
-        k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
-            (1 - mask) * kcnn
-        im = self.ifft2c(k)
-        return im
-
-
-class CMultiCoilDC(Module):
-    def __init__(self, lamda):
-        super().__init__()
-        self.lamda = lamda
-        self.coil_split = CoilSplit()
-        self.fft2c = FFT2C()
-        self.ifft2c = IFFT2C()
-        self.coil_combine = CoilCombine()
-
-    def forward(self, im, mask, ksub, sens):
-        im = self.coil_split(im, sens)
-        kcnn = self.fft2c(im)
-        k = mask * (kcnn + self.lamda * ksub) / (1 + self.lamda) + \
-            (1 - mask) * kcnn
-        im = self.ifft2c(k)
-        im = self.coil_combine(im, sens)
-        return im
+    def forward(self, kcnn, mask, ksub):
+        return torch.where(mask == 1,
+                           self.lamda * ksub + (1 - self.lamda) * kcnn,
+                           kcnn)
