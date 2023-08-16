@@ -3,7 +3,10 @@ import time
 import shutil
 import argparse
 from torch.utils.tensorboard import SummaryWriter
-from networks.cascadenet import *
+from torchvision.transforms import Pad
+from torchvision.utils import make_grid
+from networks.models import *
+from networks.losses import *
 from dataloader.dataloader import get_dataloader
 
 
@@ -15,20 +18,16 @@ def get_parser():
                         help='Directory of validation data.')
     parser.add_argument('--sample_ratio', type=float, default=1.0,
                         help='Data sample ratio.')
-    parser.add_argument('--net_type', type=str,
-                        choices=['resnet', 'unet'], default='resnet',
-                        help='Type of network, should be resnet or unet.')
-    parser.add_argument('--dimensions', type=str,
-                        choices=['2', '3', '2+1'], default='2+1',
-                        help='Dimension of network, should be 2 or 3 or 2+1.')
     parser.add_argument('--real', default=False, action='store_true',
                         help='Real-valued or complex-valued network.')
-    parser.add_argument('--lamda', type=float, default=0.01,
+    parser.add_argument('--cascade_depth', type=int, default=2,
+                        help='Depth of cascade model, 0 or 1 is special, '
+                             '0 means k-space domain model,'
+                             '1 means image domain model.')
+    parser.add_argument('--lamda', type=float, default=0.99,
                         help='Data consistency regularization parameter.')
-    parser.add_argument('--net_depth', type=int, default=3,
+    parser.add_argument('--net_depth', type=int, default=4,
                         help='Depth of network.')
-    parser.add_argument('--cascade_depth', type=int, default=3,
-                        help='Number of data consistency blocks.')
     parser.add_argument('--num_filters', type=int, default=64,
                         help='Number of filters of intermediate layers.')
     parser.add_argument('--kernel_size', type=int, default=3,
@@ -36,14 +35,22 @@ def get_parser():
     parser.add_argument('--bias', default=False, action='store_true',
                         help='Add bias or not for convolutional layers.')
     parser.add_argument('--normalization', type=str,
-                        choices=[None, 'batch', 'instance'], default=None,
-                        help='Type of normalization, should be None or '
-                             'batch or instance.')
+                        choices=['instance', 'batch'], default='instance',
+                        help='Type of normalization, should be '
+                             'instance or batch.')
     parser.add_argument('--activation', type=str,
-                        choices=['ReLU', 'LeakyReLU'], default='ReLU',
-                        help='Type of activation, should be ReLU '
-                             'or LeakyReLU')
-    parser.add_argument('--num_epochs', type=int, default=100,
+                        choices=['relu', 'leakyrelu'], default='relu',
+                        help='Type of activation, should be '
+                             'relu or leakyrelu')
+    parser.add_argument('--down', type=str,
+                        choices=['avg', 'max'], default='avg',
+                        help='Type of downsampling block, should be '
+                             'avg or max.')
+    parser.add_argument('--up', type=str,
+                        choices=['bilinear', 'convtran'], default='bilinear',
+                        help='Type of upsampling block, should be '
+                             'bilinear or convtran.')
+    parser.add_argument('--num_epochs', type=int, default=40,
                         help='Number of training epochs.')
     parser.add_argument('--learning_rate', type=float, default=1e-5,
                         help='Learning rate.')
@@ -52,62 +59,66 @@ def get_parser():
     return parser
 
 
-def get_net(net_type, dimensions, real, multi_coil, lamda,
-            net_depth, cascade_depth, num_filters,
-            kernel_size, bias, normalization, activation):
-    if net_type == 'unet':
-        if dimensions == '2':
-            if real:
-                net = MultiCoilCascadeUNet2d if multi_coil \
-                    else SingleCoilCascadeUNet2d
+def get_net(real, multi_coil, cascade_depth, lamda, net_depth, num_filters,
+            kernel_size, bias, normalization, activation, down, up):
+        if real:
+            if multi_coil:
+                if cascade_depth == 0:
+                    return MultiCoilKspaceDomainNet(
+                        2, 2, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                elif cascade_depth == 1:
+                    return MultiCoilImageDomainNet(
+                        2, 2, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                else:
+                    return MultiCoilCascadeCrossDomainNet(
+                        2, 2, cascade_depth, net_depth, num_filters,
+                        kernel_size, bias, normalization, activation,
+                        down, up, lamda)
             else:
-                net = MultiCoilCascadeCUNet2d if multi_coil \
-                    else SingleCoilCascadeCUNet2d
-        elif dimensions == '3':
-            if real:
-                net = MultiCoilCascadeUNet3d if multi_coil \
-                    else SingleCoilCascadeUNet3d
-            else:
-                net = MultiCoilCascadeCUNet3d if multi_coil \
-                    else SingleCoilCascadeCUNet3d
-        elif dimensions == '2+1':
-            if real:
-                net = MultiCoilCascadeUNet2plus1d if multi_coil \
-                    else SingleCoilCascadeUNet2plus1d
-            else:
-                net = MultiCoilCascadeCUNet2plus1d if multi_coil \
-                    else SingleCoilCascadeCUNet2plus1d
+                if cascade_depth == 0:
+                    return SingleCoilKspaceDomainNet(
+                        2, 2, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                elif cascade_depth == 1:
+                    return SingleCoilImageDomainNet(
+                        2, 2, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                else:
+                    return SingleCoilCascadeCrossDomainNet(
+                        2, 2, cascade_depth, net_depth, num_filters,
+                        kernel_size, bias, normalization, activation,
+                        down, up, lamda)
         else:
-            raise ValueError('dimensions should be 2 or 3 or 2+1.')
-    elif net_type == 'resnet':
-        if dimensions == '2':
-            if real:
-                net = MultiCoilCascadeResNet2d if multi_coil \
-                    else SingleCoilCascadeResNet2d
+            if multi_coil:
+                if cascade_depth == 0:
+                    return MultiCoilComplexKspaceDomainNet(
+                        1, 1, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                elif cascade_depth == 1:
+                    return MultiCoilComplexImageDomainNet(
+                        1, 1, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                else:
+                    return MultiCoilComplexCascadeCrossDomainNet(
+                        1, 1, cascade_depth, net_depth, num_filters,
+                        kernel_size, bias, normalization, activation,
+                        down, up, lamda)
             else:
-                net = MultiCoilCascadeCResNet2d if multi_coil \
-                    else SingleCoilCascadeCResNet2d
-        elif dimensions == '3':
-            if real:
-                net = MultiCoilCascadeResNet3d if multi_coil \
-                    else SingleCoilCascadeResNet3d
-            else:
-                net = MultiCoilCascadeCResNet3d if multi_coil \
-                    else SingleCoilCascadeCResNet3d
-        elif dimensions == '2+1':
-            if real:
-                net = MultiCoilCascadeResNet2plus1d if multi_coil \
-                    else SingleCoilCascadeResNet2plus1d
-            else:
-                net = MultiCoilCascadeCResNet2plus1d if multi_coil \
-                    else SingleCoilCascadeCResNet2plus1d
-        else:
-            raise ValueError('dimensions should be 2 or 3 or 2+1.')
-    else:
-        raise ValueError('net_type should be unet or resnet.')
-    return net(lamda, net_depth, int(real) + 1, int(real) + 1,
-               cascade_depth, num_filters, kernel_size, bias,
-               normalization, activation)
+                if cascade_depth == 0:
+                    return SingleCoilComplexKspaceDomainNet(
+                        1, 1, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                elif cascade_depth == 1:
+                    return SingleCoilComplexImageDomainNet(
+                        1, 1, net_depth, num_filters, kernel_size,
+                        bias, normalization, activation, down, up)
+                else:
+                    return SingleCoilComplexCascadeCrossDomainNet(
+                        1, 1, cascade_depth, net_depth, num_filters,
+                        kernel_size, bias, normalization, activation,
+                        down, up, lamda)
 
 
 def count_parameters(net):
@@ -134,22 +145,22 @@ def load_ckpt(ckpt_filename, net, optimizer):
 
 
 def train(net, optimizer, dataloader, writer, epoch, use_gpu):
+    start_time_epoch = start_time_step = time.perf_counter()
+
     net.train()
     avg_loss = 0.0
     global_step = epoch * len(dataloader)
-
-    start_time_epoch = start_time_step = time.perf_counter()
+    ssim = SSIMLoss().to('cuda') if use_gpu else SSIMLoss()
     for step, item in enumerate(dataloader):
-        imsub = item['imsub'].to('cuda') if use_gpu else item['imsub']
         ksub = item['ksub'].to('cuda') if use_gpu else item['ksub']
         mask = item['mask'].to('cuda') if use_gpu else item['mask']
         imfull = item['imfull'].to('cuda') if use_gpu else item['imfull']
         if 'sens' in item:
             sens = item['sens'].to('cuda') if use_gpu else item['sens']
-            imrecon = net(imsub, mask, ksub, sens)
+            imcnn = net(ksub, mask, sens)
         else:
-            imrecon = net(imsub, mask, ksub)
-        loss = torch.nn.functional.l1_loss(imrecon, imfull)
+            imcnn = net(ksub, mask)
+        loss = ssim(imcnn, imfull, imfull.max())
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -169,55 +180,56 @@ def train(net, optimizer, dataloader, writer, epoch, use_gpu):
 
 
 def validate(net, dataloader, writer, epoch, use_gpu):
+    start_time = time.perf_counter()
+
     net.eval()
     avg_loss = 0.0
-
-    start_time = time.perf_counter()
+    ssim = SSIMLoss().to('cuda') if use_gpu else SSIMLoss()
+    display_imfull = []
+    display_imcnn = []
+    display_mask = []
     with torch.no_grad():
         for idx, item in enumerate(dataloader):
-            imsub = item['imsub'].to('cuda') if use_gpu else item['imsub']
             ksub = item['ksub'].to('cuda') if use_gpu else item['ksub']
             mask = item['mask'].to('cuda') if use_gpu else item['mask']
             imfull = item['imfull'].to('cuda') if use_gpu else item['imfull']
             if 'sens' in item:
                 sens = item['sens'].to('cuda') if use_gpu else item['sens']
-                imrecon = net(imsub, mask, ksub, sens)
+                imcnn = net(ksub, mask, sens)
             else:
-                imrecon = net(imsub, mask, ksub)
-            avg_loss += torch.nn.functional.l1_loss(imrecon, imfull)
+                imcnn = net(ksub, mask)
+            avg_loss += ssim(imcnn, imfull, imfull.max())
 
-            if idx % (len(dataloader) // 6) == 0:
-                display(writer, imsub, imfull, imrecon, epoch, idx)
+            if idx % (len(dataloader) // 16) == 0:
+                display_imfull.append(imfull)
+                display_imcnn.append(imcnn)
+                display_mask.append(mask)
 
         avg_loss /= len(dataloader)
         writer.add_scalar('val_loss', avg_loss, epoch)
+        display(writer, display_imfull, display_imcnn, display_mask, epoch)
         val_time = time.perf_counter() - start_time
     return avg_loss, val_time
 
 
-def display(writer, imsub, imfull, imrecon, epoch, idx):
-    if len(imsub.shape) == 4:
-        imsub = imsub[0]
-        imfull = imfull[0]
-        imrecon = imrecon[0]
-    else:
-        imsub = imsub[0, :, 0]
-        imfull = imfull[0, :, 0]
-        imrecon = imrecon[0, :, 0]
-    if imsub.shape[0] == 1:
-        imsub = imsub[0]
-        imfull = imfull[0]
-        imrecon = imrecon[0]
-    else:
-        imsub = torch.complex(imsub.select(0, 0), imsub.select(0, 1))
-        imfull = torch.complex(imfull.select(0, 0), imfull.select(0, 1))
-        imrecon = torch.complex(imrecon.select(0, 0), imrecon.select(0, 1))
-    imsub = torch.abs(imsub)
-    imfull = torch.abs(imfull)
-    imrecon = torch.abs(imrecon)
-    im = torch.vstack((imsub, imfull, imrecon))
-    writer.add_images(f'sample {idx}', im, global_step=epoch,
-                      dataformats='HW')
+def display(writer, display_imfull, display_imcnn, display_mask, epoch):
+    max_width = max(im.shape[-1] for im in display_imfull)
+    max_height = max(im.shape[-2] for im in display_imfull)
+    for i in range(len(display_imfull)):
+        imfull, imcnn, mask = \
+            display_imfull[i], display_imcnn[i], display_mask[i]
+        diff_width = max_width - imfull.shape[-1]
+        diff_height = max_height - imfull.shape[-2]
+        pad = Pad((diff_width // 2, diff_width - diff_width // 2,
+                   diff_height // 2, diff_height - diff_height // 2))
+        display_imfull[i], display_imcnn[i], display_mask[i] = \
+            pad(imfull), pad(imcnn), pad(mask)
+        writer.add_image('target', make_grid(
+            imfull, nrow=4, normalize=True, scale_each=True))
+        writer.add_image('output', make_grid(
+            imcnn, nrow=4, normalize=True, scale_each=True))
+        writer.add_image('mask', make_grid(
+            mask, nrow=8, normalize=True, scale_each=True))
 
 
 def main():
@@ -225,34 +237,42 @@ def main():
     trn_dir = args.trn_dir
     val_dir = args.val_dir
     sample_ratio = args.sample_ratio
-    net_type = args.net_type
-    dimensions = args.dimensions
     real = args.real
     multi_coil = 'MultiCoil' in trn_dir
+    cascade_depth = args.cascade_depth
     lamda = args.lamda
     net_depth = args.net_depth
-    cascade_depth = args.cascade_depth
     num_filters = args.num_filters
     kernel_size = args.kernel_size
     bias = args.bias
     normalization = args.normalization
     activation = args.activation
+    down = args.down
+    up = args.up
     num_epochs = args.num_epochs
     learning_rate = args.learning_rate
     use_gpu = args.use_gpu
 
-    net_name = \
-        ['multi' if multi_coil else 'single', net_type,
-         dimensions + 'd', str(lamda), str(net_depth),
-         str(cascade_depth), str(num_filters), str(kernel_size)]
+    net_name = []
     if not real:
-        net_name = ['complex'] + net_name
+        net_name.append('complex')
+    net_name.append('multi' if multi_coil else 'single')
+    if cascade_depth == 0:
+        net_name.append('kspace')
+    elif cascade_depth == 1:
+        net_name.append('image')
+    else:
+        net_name.append('cascade' + str(100 * lamda))
+    net_name.append('unet')
+    net_name.append(str(net_depth))
+    net_name.append(str(num_filters))
+    net_name.append(str(kernel_size))
     if bias:
         net_name.append('bias')
-    if normalization:
-        net_name.append(normalization)
-    if activation:
-        net_name.append(activation)
+    net_name.append(normalization)
+    net_name.append(activation)
+    net_name.append(down)
+    net_name.append(up)
     net_name = '_'.join(net_name)
     out_dir = os.path.join('..', 'experiments', net_name)
     log_dir = os.path.join(out_dir, 'log')
@@ -261,16 +281,14 @@ def main():
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    net = get_net(net_type, dimensions, real, multi_coil, lamda,
-                  net_depth, cascade_depth, num_filters,
-                  kernel_size, bias, normalization, activation)
+    net = get_net(real, multi_coil, cascade_depth, lamda,
+                  net_depth, num_filters, kernel_size, bias,
+                  normalization, activation, down, up)
     if use_gpu:
         net = net.to('cuda')
     optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
-    trn_dataloader = get_dataloader(trn_dir, True, dimensions,
-                                    real, multi_coil, sample_ratio)
-    val_dataloader = get_dataloader(val_dir, False, dimensions,
-                                    real, multi_coil, sample_ratio)
+    trn_dataloader = get_dataloader(trn_dir, True, multi_coil, sample_ratio)
+    val_dataloader = get_dataloader(val_dir, False, multi_coil, sample_ratio)
     writer = SummaryWriter(log_dir)
 
     total_parameters, trainable_parameters = count_parameters(net)
