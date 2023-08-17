@@ -27,29 +27,26 @@ def build_dataset(old_root, new_root, multi_coil):
             for data_file in ['cine_lax', 'cine_sax']:
                 old_filename = os.path.join(
                     old_root, subject, data_file + '.mat')
-                new_filename = os.path.join(
-                    new_root, subject + '_' + data_file + '.h5')
                 if os.path.exists(old_filename):
                     kfull = h5read(old_filename, 'kspace_full' if multi_coil
                                    else 'kspace_single_full')
                     kfull = kfull['real'] + 1j * kfull['imag']
                     for i in range(kfull.shape[1]):
                         kfull[:, i] /= np.max(np.abs(kfull[:, i]))
-                    imfull = ifft2c(kfull)
-                    if multi_coil:
-                        sens = np.zeros_like(imfull, shape=imfull.shape[1:])
-                        temp = np.zeros_like(imfull, shape=imfull.shape[:2] +
-                                             imfull.shape[3:])
-                        for i in range(imfull.shape[1]):
-                            sens[i] = espirit_map(
-                                np.mean(kfull[:, i], axis=0))
-                            for j in range(imfull.shape[0]):
-                                temp[j, i] = coil_combine(
-                                    imfull[j, i], sens[i])
-                        imfull = temp
-                        h5write(new_filename, 'sens', sens.astype(np.csingle))
-                    h5write(new_filename, 'kfull', kfull.astype(np.csingle))
-                    h5write(new_filename, 'imfull', imfull.astype(np.csingle))
+                    for i in range(kfull.shape[1]):
+                        if multi_coil:
+                            sens = espirit_map(np.mean(kfull[:, i], axis=0))
+                        else:
+                            sens = None
+                        for j in range(kfull.shape[0]):
+                            new_filename = os.path.join(
+                                new_root, f'{subject}_{data_file}_'
+                                          f'frame{j:02d}_slice{i:02d}.h5')
+                            h5write(new_filename, 'kspace',
+                                    kfull[j][i].astype(np.csingle))
+                            if sens:
+                                h5write(new_filename, 'sensitivity_map',
+                                    sens.astype(np.csingle))
             print('Finish processing subject {}: {:.3f} seconds.'.format(
                 subject, time.perf_counter() - start_time))
 
