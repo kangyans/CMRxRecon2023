@@ -17,7 +17,7 @@ class CMRDataset(Dataset):
         filenames = filenames[:int(sample_ratio * len(filenames))]
         for filename in filenames:
             filename = os.path.join(dset_path, filename)
-            num_frames, num_slices = h5shape(filename, 'kspace')[0]
+            num_slices = h5shape(filename, 'kspace')[0]
             self.map += [(filename, i) for i in range(num_slices)]
 
     def __len__(self):

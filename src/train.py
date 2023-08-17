@@ -3,7 +3,6 @@ import time
 import shutil
 import argparse
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import Pad
 from torchvision.utils import make_grid
 from networks.models import *
 from networks.losses import *
@@ -61,64 +60,64 @@ def get_parser():
 
 def get_net(real, multi_coil, cascade_depth, lamda, net_depth, num_filters,
             kernel_size, bias, normalization, activation, down, up):
-        if real:
-            if multi_coil:
-                if cascade_depth == 0:
-                    return MultiCoilKspaceDomainNet(
-                        2, 2, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                elif cascade_depth == 1:
-                    return MultiCoilImageDomainNet(
-                        2, 2, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                else:
-                    return MultiCoilCascadeCrossDomainNet(
-                        2, 2, cascade_depth, net_depth, num_filters,
-                        kernel_size, bias, normalization, activation,
-                        down, up, lamda)
+    if real:
+        if multi_coil:
+            if cascade_depth == 0:
+                return MultiCoilKspaceDomainNet(
+                    2, 2, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            elif cascade_depth == 1:
+                return MultiCoilImageDomainNet(
+                    2, 2, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
             else:
-                if cascade_depth == 0:
-                    return SingleCoilKspaceDomainNet(
-                        2, 2, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                elif cascade_depth == 1:
-                    return SingleCoilImageDomainNet(
-                        2, 2, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                else:
-                    return SingleCoilCascadeCrossDomainNet(
-                        2, 2, cascade_depth, net_depth, num_filters,
-                        kernel_size, bias, normalization, activation,
-                        down, up, lamda)
+                return MultiCoilCascadeCrossDomainNet(
+                    2, 2, cascade_depth, net_depth, num_filters,
+                    kernel_size, bias, normalization, activation,
+                    down, up, lamda)
         else:
-            if multi_coil:
-                if cascade_depth == 0:
-                    return MultiCoilComplexKspaceDomainNet(
-                        1, 1, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                elif cascade_depth == 1:
-                    return MultiCoilComplexImageDomainNet(
-                        1, 1, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                else:
-                    return MultiCoilComplexCascadeCrossDomainNet(
-                        1, 1, cascade_depth, net_depth, num_filters,
-                        kernel_size, bias, normalization, activation,
-                        down, up, lamda)
+            if cascade_depth == 0:
+                return SingleCoilKspaceDomainNet(
+                    2, 2, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            elif cascade_depth == 1:
+                return SingleCoilImageDomainNet(
+                    2, 2, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
             else:
-                if cascade_depth == 0:
-                    return SingleCoilComplexKspaceDomainNet(
-                        1, 1, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                elif cascade_depth == 1:
-                    return SingleCoilComplexImageDomainNet(
-                        1, 1, net_depth, num_filters, kernel_size,
-                        bias, normalization, activation, down, up)
-                else:
-                    return SingleCoilComplexCascadeCrossDomainNet(
-                        1, 1, cascade_depth, net_depth, num_filters,
-                        kernel_size, bias, normalization, activation,
-                        down, up, lamda)
+                return SingleCoilCascadeCrossDomainNet(
+                    2, 2, cascade_depth, net_depth, num_filters,
+                    kernel_size, bias, normalization, activation,
+                    down, up, lamda)
+    else:
+        if multi_coil:
+            if cascade_depth == 0:
+                return MultiCoilComplexKspaceDomainNet(
+                    1, 1, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            elif cascade_depth == 1:
+                return MultiCoilComplexImageDomainNet(
+                    1, 1, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            else:
+                return MultiCoilComplexCascadeCrossDomainNet(
+                    1, 1, cascade_depth, net_depth, num_filters,
+                    kernel_size, bias, normalization, activation,
+                    down, up, lamda)
+        else:
+            if cascade_depth == 0:
+                return SingleCoilComplexKspaceDomainNet(
+                    1, 1, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            elif cascade_depth == 1:
+                return SingleCoilComplexImageDomainNet(
+                    1, 1, net_depth, num_filters, kernel_size,
+                    bias, normalization, activation, down, up)
+            else:
+                return SingleCoilComplexCascadeCrossDomainNet(
+                    1, 1, cascade_depth, net_depth, num_filters,
+                    kernel_size, bias, normalization, activation,
+                    down, up, lamda)
 
 
 def count_parameters(net):
@@ -196,6 +195,7 @@ def validate(net, dataloader, writer, epoch, use_gpu):
             if 'sens' in item:
                 sens = item['sens'].to('cuda') if use_gpu else item['sens']
                 imcnn = net(ksub, mask, sens)
+                mask = mask[:, :, 0, :, :]
             else:
                 imcnn = net(ksub, mask)
             avg_loss += ssim(imcnn, imfull, imfull.max())
@@ -213,23 +213,26 @@ def validate(net, dataloader, writer, epoch, use_gpu):
 
 
 def display(writer, display_imfull, display_imcnn, display_mask, epoch):
-    max_width = max(im.shape[-1] for im in display_imfull)
-    max_height = max(im.shape[-2] for im in display_imfull)
+    max_width = max(imfull.shape[-1] for imfull in display_imfull)
+    max_height = max(imfull.shape[-2] for imfull in display_imfull)
     for i in range(len(display_imfull)):
         imfull, imcnn, mask = \
             display_imfull[i], display_imcnn[i], display_mask[i]
         diff_width = max_width - imfull.shape[-1]
         diff_height = max_height - imfull.shape[-2]
-        pad = Pad((diff_width // 2, diff_width - diff_width // 2,
-                   diff_height // 2, diff_height - diff_height // 2))
+        pad = (diff_width // 2, diff_width - diff_width // 2,
+               diff_height // 2, diff_height - diff_height // 2)
         display_imfull[i], display_imcnn[i], display_mask[i] = \
-            pad(imfull), pad(imcnn), pad(mask)
-        writer.add_image('target', make_grid(
-            imfull, nrow=4, normalize=True, scale_each=True))
-        writer.add_image('output', make_grid(
-            imcnn, nrow=4, normalize=True, scale_each=True))
-        writer.add_image('mask', make_grid(
-            mask, nrow=8, normalize=True, scale_each=True))
+            F.pad(imfull, pad), F.pad(imcnn, pad), F.pad(mask, pad)
+    display_imfull = torch.cat(display_imfull)
+    display_imcnn = torch.cat(display_imcnn)
+    display_mask = torch.cat(display_mask)
+    writer.add_image('target', make_grid(
+        display_imfull, nrow=4, normalize=True, scale_each=True), epoch)
+    writer.add_image('output', make_grid(
+        display_imcnn, nrow=4, normalize=True, scale_each=True), epoch)
+    writer.add_image('mask', make_grid(
+        display_mask, nrow=4, normalize=True, scale_each=True), epoch)
 
 
 def main():
@@ -262,7 +265,7 @@ def main():
     elif cascade_depth == 1:
         net_name.append('image')
     else:
-        net_name.append('cascade' + str(100 * lamda))
+        net_name.append('cascade' + str(100 * lamda)[:2])
     net_name.append('unet')
     net_name.append(str(net_depth))
     net_name.append(str(num_filters))

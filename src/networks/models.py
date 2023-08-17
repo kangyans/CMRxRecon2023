@@ -175,10 +175,12 @@ class SingleCoilCascadeCrossDomainNet(Module):
         super().__init__()
         self.knets = ModuleList([UNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.inets = ModuleList([UNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.real_complex = RealComplex(channel_dim)
         self.complex_real = ComplexReal(channel_dim)
         self.fft2c = FFT2C()
@@ -206,10 +208,12 @@ class MultiCoilCascadeCrossDomainNet(Module):
         super().__init__()
         self.knets = ModuleList([UNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.inets = ModuleList([UNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.real_complex = RealComplex(channel_dim)
         self.complex_real = ComplexReal(channel_dim)
         self.fft2c = FFT2C()
@@ -244,10 +248,12 @@ class SingleCoilComplexCascadeCrossDomainNet(Module):
         super().__init__()
         self.knets = ModuleList([CUNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.inets = ModuleList([CUNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.fft2c = FFT2C()
         self.ifft2c = IFFT2C()
         self.data_consistency = DataConsistency(lamda)
@@ -273,10 +279,12 @@ class MultiCoilComplexCascadeCrossDomainNet(Module):
         super().__init__()
         self.knets = ModuleList([CUNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.inets = ModuleList([CUNet(
             in_channels, out_channels, net_depth, num_filters, kernel_size,
-            bias, normalization, activation, down, up)] * cascade_depth)
+            bias, normalization, activation, down, up)
+            for _ in range(cascade_depth)])
         self.fft2c = FFT2C()
         self.ifft2c = IFFT2C()
         self.coil_split = CoilSplit(coil_dim)

@@ -13,7 +13,7 @@ class SSIMLoss(Module):
         self.cov_norm = win_size ** 2 / (win_size ** 2 - 1)
 
     def forward(self, x, y, data_range):
-        data_range = data_range[:, None, None, None]
+        data_range = data_range[None, None, None, None]
         c1 = (self.k1 * data_range) ** 2
         c2 = (self.k2 * data_range) ** 2
         ux = F.conv2d(x, self.w)

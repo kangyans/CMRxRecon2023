@@ -31,7 +31,7 @@ class TargetRecon(object):
                 dim=(-2, -1)))
         if 'sens' in item:
             item['imfull'] = torch.sqrt(torch.sum(
-                item['full'] ** 2, dim=-3))
+                item['imfull'] ** 2, dim=-3))
         return item
 
 

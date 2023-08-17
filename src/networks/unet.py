@@ -14,16 +14,18 @@ class _DoubleConvBlock(Module):
         if not mid_channels:
             mid_channels = out_channels
         self.block = Sequential(
-            Conv2d(in_channels, mid_channels, kernel_size, bias=bias),
+            Conv2d(in_channels, mid_channels, kernel_size,
+                   padding='same', bias=bias),
             InstanceNorm2d(mid_channels) if normalization == 'instance'
             else BatchNorm2d(mid_channels),
-            ReLU(inplace=True) if activation == 'relu'
-            else LeakyReLU(negative_slope=0.1, inplace=True),
-            Conv2d(mid_channels, out_channels, kernel_size, bias=bias),
+            ReLU() if activation == 'relu'
+            else LeakyReLU(negative_slope=0.1),
+            Conv2d(mid_channels, out_channels, kernel_size,
+                   padding='same', bias=bias),
             InstanceNorm2d(out_channels) if normalization == 'instance'
             else BatchNorm2d(out_channels),
-            ReLU(inplace=True) if activation == 'relu'
-            else LeakyReLU(negative_slope=0.1, inplace=True))
+            ReLU() if activation == 'relu'
+            else LeakyReLU(negative_slope=0.1))
 
     def forward(self, input):
         return self.block(input)
@@ -41,16 +43,18 @@ class _CDoubleConvBlock(Module):
         if not mid_channels:
             mid_channels = out_channels
         self.block = Sequential(
-            CConv2d(in_channels, mid_channels, kernel_size, bias=bias),
+            CConv2d(in_channels, mid_channels, kernel_size,
+                    padding='same', bias=bias),
             CInstanceNorm2d(mid_channels) if normalization == 'instance'
             else CBatchNorm2d(mid_channels),
-            CReLU(inplace=True) if activation == 'relu'
-            else CLeakyReLU(negative_slope=0.1, inplace=True),
-            CConv2d(mid_channels, out_channels, kernel_size, bias=bias),
+            CReLU() if activation == 'relu'
+            else CLeakyReLU(negative_slope=0.1),
+            CConv2d(mid_channels, out_channels, kernel_size,
+                    padding='same', bias=bias),
             CInstanceNorm2d(out_channels) if normalization == 'instance'
             else CBatchNorm2d(out_channels),
-            CReLU(inplace=True) if activation == 'relu'
-            else CLeakyReLU(negative_slope=0.1, inplace=True))
+            CReLU() if activation == 'relu'
+            else CLeakyReLU(negative_slope=0.1))
 
     def forward(self, input):
         return self.block(input)
@@ -174,8 +178,8 @@ class UNet(Module):
         self.ups.append(_UpBlock(
             num_filters * 2, num_filters, kernel_size,
             bias, normalization, activation, up))
-        self.last = Conv2d(
-            num_filters, out_channels, kernel_size=1, bias=bias)
+        self.last = Conv2d(num_filters, out_channels, kernel_size=1,
+                           padding='same', bias=bias)
 
     def forward(self, input):
         output = self.first(input)
@@ -183,7 +187,7 @@ class UNet(Module):
         for down in self.downs[:-1]:
             output = down(output)
             skip_connections.append(output)
-        output = self.down4(output)
+        output = self.downs[-1](output)
         for up in self.ups:
             output = up(output, skip_connections.pop())
         output = self.last(output)
@@ -220,8 +224,8 @@ class CUNet(Module):
         self.ups.append(_CUpBlock(
             num_filters * 2, num_filters, kernel_size,
             bias, normalization, activation, up))
-        self.last = CConv2d(
-            num_filters, out_channels, kernel_size=1, bias=bias)
+        self.last = CConv2d(num_filters, out_channels, kernel_size=1,
+                            padding='same', bias=bias)
 
     def forward(self, input):
         output = self.first(input)
@@ -229,7 +233,7 @@ class CUNet(Module):
         for down in self.downs[:-1]:
             output = down(output)
             skip_connections.append(output)
-        output = self.down4(output)
+        output = self.downs[-1](output)
         for up in self.ups:
             output = up(output, skip_connections.pop())
         output = self.last(output)
