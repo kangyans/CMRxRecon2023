@@ -17,18 +17,17 @@ class CMRDataset(Dataset):
         filenames = filenames[:int(sample_ratio * len(filenames))]
         for filename in filenames:
             filename = os.path.join(dset_path, filename)
-            num_slices = h5shape(filename, 'kspace')[0]
-            self.map += [(filename, i) for i in range(num_slices)]
+            self.map.append(filename)
 
     def __len__(self):
         return len(self.map)
 
     def __getitem__(self, idx):
         item = {}
-        filename, i = self.map[idx]
-        item['kfull'] = h5read(filename, 'kspace')[i]
+        filename = self.map[idx]
+        item['kfull'] = h5read(filename, 'kspace')
         if self.multi_coil:
-            item['sens'] = h5read(filename, 'sensitivity_map')[i]
+            item['sens'] = h5read(filename, 'sensitivity_map')
         return self.transform(item)
 
 
@@ -38,7 +37,7 @@ def get_dataloader(dset_path, is_training, multi_coil, sample_ratio=1.0):
                      Subsampling(24, (4, 6, 8, 10, 12)), DimExpansion()]
         return DataLoader(CMRDataset(
             dset_path, multi_coil, Compose(transform), sample_ratio),
-            shuffle=True)
+            shuffle=True, num_workers=4, pin_memory=True)
     else:
         datasets = []
         for subsample_ratios in ((4,), (8,), (10,)):
@@ -46,4 +45,5 @@ def get_dataloader(dset_path, is_training, multi_coil, sample_ratio=1.0):
                          Subsampling(24, subsample_ratios), DimExpansion()]
             datasets.append(CMRDataset(
                 dset_path, multi_coil, Compose(transform), sample_ratio))
-        return DataLoader(ConcatDataset(datasets), shuffle=False)
+        return DataLoader(ConcatDataset(datasets),
+                          shuffle=False, num_workers=4, pin_memory=True)
