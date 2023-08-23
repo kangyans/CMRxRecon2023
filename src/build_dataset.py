@@ -12,25 +12,14 @@ def get_parser():
                         help='Root path of the raw data.')
     parser.add_argument('--new_root', type=str,
                         help='Root path of the new dataset.')
-    parser.add_argument('--trn_ratio', type=float, default=0.85,
-                        help='Training ratio, validation ratio = '
-                             '1 - training ratio.')
     return parser
 
 
-def build_dataset(old_root, new_root, multi_coil, trn_ratio):
-    trn_root = os.path.join(new_root, 'TrainingSet')
-    val_root = os.path.join(new_root, 'ValidationSet')
-    if not os.path.exists(trn_root):
-        os.makedirs(trn_root)
-    if not os.path.exists(val_root):
-        os.makedirs(val_root)
+def build_dataset(old_root, new_root, multi_coil):
+    if not os.path.exists(new_root):
+        os.makedirs(new_root)
     subjects = [subject for subject in os.listdir(old_root)
                 if os.path.isdir(os.path.join(old_root, subject))]
-    trn_num = int(trn_ratio * len(subjects))
-    subjects.sort()
-    rng = np.random.default_rng(seed=42)
-    rng.shuffle(subjects)
     for i, subject in enumerate(subjects):
         print('Start processing subject {} ...'.format(subject))
         start_time = time.perf_counter()
@@ -42,19 +31,17 @@ def build_dataset(old_root, new_root, multi_coil, trn_ratio):
                                    else 'kspace_single_full')
                 kfull = kfull['real'] + 1j * kfull['imag']
                 for s in range(kfull.shape[1]):
+                    new_filename = os.path.join(
+                        new_root, '{}_{}_slice{:02d}.h5'.format(
+                            subject, data_file, s))
                     kfull[:, s] /= np.max(np.abs(kfull[:, s]))
+                    h5write(new_filename, 'kspace',
+                            kfull[:, s].astype(np.csingle))
                     if multi_coil:
                         sens = espirit_map(np.mean(kfull[:, s], axis=0))
-                    for f in range(kfull.shape[0]):
-                        new_filename = os.path.join(
-                            trn_root if i < trn_num else val_root,
-                            '{}_{}_frame{:02d}_slice{:02d}.h5'.format(
-                                subject, data_file, f, s))
-                        h5write(new_filename, 'kspace',
-                                kfull[f][s].astype(np.csingle))
-                        if multi_coil:
-                            h5write(new_filename, 'sensitivity_map',
-                                    sens.astype(np.csingle))
+                        sens = np.tile(sens, (kfull.shape[0], 1, 1, 1))
+                        h5write(new_filename, 'sensitivity_map',
+                                sens.astype(np.csingle))
         print('Finish processing subject {}: {:.3f} seconds.'.format(
             subject, time.perf_counter() - start_time))
 
@@ -64,8 +51,7 @@ def main():
     old_root = args.old_root
     new_root = args.new_root
     multi_coil = 'MultiCoil' in old_root
-    trn_ratio = args.trn_ratio
-    build_dataset(old_root, new_root, multi_coil, trn_ratio)
+    build_dataset(old_root, new_root, multi_coil)
 
 
 if __name__ == '__main__':
