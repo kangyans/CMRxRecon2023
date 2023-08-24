@@ -1,8 +1,8 @@
 import os
+import h5py as h5
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from torchvision.transforms import Compose
 from .transforms import *
-from utils.io import *
 
 
 class CMRDataset(Dataset):
@@ -17,17 +17,20 @@ class CMRDataset(Dataset):
         filenames = filenames[:int(sample_ratio * len(filenames))]
         for filename in filenames:
             filename = os.path.join(dset_path, filename)
-            self.map.append(filename)
+            with h5.File(filename, 'r') as f:
+                num_slices = f['kspace'].shape[0]
+            self.map += [(filename, i) for i in range(num_slices)]
 
     def __len__(self):
         return len(self.map)
 
     def __getitem__(self, idx):
         item = {}
-        filename = self.map[idx]
-        item['kfull'] = h5read(filename, 'kspace')
-        if self.multi_coil:
-            item['sens'] = h5read(filename, 'sensitivity_map')
+        filename, i = self.map[idx]
+        with h5.File(filename, 'r') as f:
+            item['kfull'] = f['kspace'][i]
+            if self.multi_coil:
+                item['sens'] = f['sensitivity_map'][i]
         return self.transform(item)
 
 
