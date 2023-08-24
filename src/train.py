@@ -2,6 +2,8 @@ import os
 import time
 import shutil
 import argparse
+
+import torch.nn
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 from networks.models import *
@@ -149,6 +151,7 @@ def train(net, optimizer, dataloader, writer, epoch, use_gpu):
     net.train()
     avg_loss = 0.0
     global_step = epoch * len(dataloader)
+    l1 = torch.nn.L1Loss().to('cuda') if use_gpu else torch.nn.L1Loss()
     ssim = SSIMLoss().to('cuda') if use_gpu else SSIMLoss()
     for step, item in enumerate(dataloader):
         ksub = item['ksub'].to('cuda') if use_gpu else item['ksub']
@@ -159,11 +162,15 @@ def train(net, optimizer, dataloader, writer, epoch, use_gpu):
             imcnn = net(ksub, mask, sens)
         else:
             imcnn = net(ksub, mask)
-        loss = ssim(imcnn, imfull, imfull.max())
+        l1_loss = l1(imcnn, imfull)
+        ssim_loss = ssim(imcnn, imfull, imfull.max())
+        loss = l1_loss + ssim_loss
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
+        writer.add_scalar('l1_loss', l1_loss.item(), global_step + step)
+        writer.add_scalar('ssim_loss', ssim_loss.item(), global_step + step)
         writer.add_scalar('trn_loss', loss.item(), global_step + step)
         avg_loss = 0.9 * avg_loss + 0.1 * loss.item() \
             if step > 0 else loss.item()
