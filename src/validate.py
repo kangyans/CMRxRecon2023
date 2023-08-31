@@ -158,7 +158,7 @@ def postprocess(item):
 
 def main():
     args = get_parser().parse_args()
-    val_dir = args.dep_dir
+    val_dir = args.val_dir
     undersample_ratio = args.undersample_ratio
     real = args.real
     multi_coil = 'MultiCoil' in val_dir

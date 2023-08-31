@@ -28,7 +28,7 @@ def build_dataset(old_root, new_root, multi_coil):
                 old_root, subject, data_file + '.mat')
             if os.path.exists(old_filename):
                 kfull = h5read(old_filename, 'kspace_full' if multi_coil
-                                   else 'kspace_single_full')
+                               else 'kspace_single_full')
                 kfull = kfull['real'] + 1j * kfull['imag']
                 for s in range(kfull.shape[1]):
                     new_filename = os.path.join(
