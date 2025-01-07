@@ -1,1 +1,1 @@
-# C^3-net for CMRxRecon2023
+# C<sub>3</sub>-net for CMRxRecon2023
